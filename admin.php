@@ -199,8 +199,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
         </div>
         
-        <div class="footer-text">
-            <i class="bi bi-building me-1"></i> Iloilo Science and Technology University | Est. 1905
+        <div class="text-center mt-4 mb-4">
+            <div class="footer-text">
+                <div>
+                    <i class="bi bi-building me-2"></i> © 2025 Iloilo Science and Technology University
+                </div>
+                <div>
+                    </i> This website was developed by Larry Denver Biaco
+                </div>
+            </div>
         </div>
     </div>
     

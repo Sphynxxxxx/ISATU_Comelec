@@ -2,13 +2,8 @@
 session_start();
 require_once "../../backend/connections/config.php"; 
 
-// Check if admin is logged in
-if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: admin_login.php");
-    exit();
-}
 
-// Logout functionality
+
 if(isset($_GET['logout'])) {
     session_destroy();
     header("Location: ../admin.php");
@@ -52,16 +47,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_msg = "Invalid college selected";
     }
     
-    // Check if student ID already exists in the same college
+    // Check if student ID already exists in ANY college (except SR)
     if (empty($error_msg)) {
-        $check_query = "SELECT * FROM students WHERE student_id = ? AND college_code = ?";
+        // First, check if student exists in the same college
+        $check_query = "SELECT college_code FROM students WHERE student_id = ? AND college_code = ?";
         $stmt = $conn->prepare($check_query);
         $stmt->bind_param("ss", $student_id, $college_code);
         $stmt->execute();
         $result = $stmt->get_result();
         
         if ($result->num_rows > 0) {
-            $error_msg = "This student ID is already registered in the selected college";
+            $error_msg = "This student ID is already registered in " . $college_names[$college_code];
+        } else {
+            // Then, check if student exists in any other college (excluding SR)
+            $check_other_colleges_query = "SELECT college_code FROM students WHERE student_id = ? AND college_code != 'sr'";
+            $stmt = $conn->prepare($check_other_colleges_query);
+            $stmt->bind_param("s", $student_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                $row = $result->fetch_assoc();
+                $existing_college = $row['college_code'];
+                $error_msg = "This student ID is already registered in " . $college_names[$existing_college] . 
+                             ". A student cannot be registered in multiple colleges.";
+            }
         }
     }
     
@@ -149,17 +159,122 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Handle delete action
+if (isset($_GET['delete_id'])) {
+    $delete_id = $_GET['delete_id'];
+    
+    // Start transaction
+    $conn->begin_transaction();
+    try {
+        // Get the student_id first to find the SR record if needed
+        $get_student_query = "SELECT student_id, college_code FROM students WHERE id = ?";
+        $stmt = $conn->prepare($get_student_query);
+        $stmt->bind_param("i", $delete_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $student = $result->fetch_assoc();
+            $student_id = $student['student_id'];
+            $college_code = $student['college_code'];
+            
+            // If this is not an SR record, find and delete the corresponding SR record
+            if ($college_code != 'sr') {
+                // Find SR record with the same student_id
+                $find_sr_query = "SELECT id FROM students WHERE student_id = ? AND college_code = 'sr'";
+                $stmt = $conn->prepare($find_sr_query);
+                $stmt->bind_param("s", $student_id);
+                $stmt->execute();
+                $sr_result = $stmt->get_result();
+                
+                if ($sr_result->num_rows > 0) {
+                    $sr_record = $sr_result->fetch_assoc();
+                    $sr_id = $sr_record['id'];
+                    
+                    // Delete from student_republic_voters first (to maintain FK constraints)
+                    $delete_sr_voter_query = "DELETE FROM student_republic_voters WHERE student_id = ?";
+                    $stmt = $conn->prepare($delete_sr_voter_query);
+                    $stmt->bind_param("i", $sr_id);
+                    $stmt->execute();
+                    
+                    // Then delete the SR student record
+                    $delete_sr_query = "DELETE FROM students WHERE id = ?";
+                    $stmt = $conn->prepare($delete_sr_query);
+                    $stmt->bind_param("i", $sr_id);
+                    $stmt->execute();
+                }
+            } else {
+                // If this is an SR record, delete from student_republic_voters first
+                $delete_sr_voter_query = "DELETE FROM student_republic_voters WHERE student_id = ?";
+                $stmt = $conn->prepare($delete_sr_voter_query);
+                $stmt->bind_param("i", $delete_id);
+                $stmt->execute();
+            }
+        }
+        
+        // Finally delete the original record that was requested
+        $delete_query = "DELETE FROM students WHERE id = ?";
+        $stmt = $conn->prepare($delete_query);
+        $stmt->bind_param("i", $delete_id);
+        $stmt->execute();
+        
+        // Commit all changes
+        $conn->commit();
+        
+        // Add a success message parameter
+        $success = "Student successfully deleted from " . $college_names[$selected_college];
+        if ($college_code != 'sr') {
+            $success .= " and Student Republic";
+        }
+        
+        header("Location: register_student.php?college=".$selected_college."&success=".urlencode($success));
+        exit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        $error = "Failed to delete student: " . $e->getMessage();
+        header("Location: register_student.php?college=".$selected_college."&error=".urlencode($error));
+        exit();
+    }
+}
+
+// Initialize search variable
+$search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
+$search_condition = '';
+$search_params = [];
+$param_types = 's'; 
+
+// If search term is provided, add it to the query
+if (!empty($search_term)) {
+    $search_condition = " AND student_id LIKE ?";
+    $search_params[] = "%$search_term%";
+    $param_types .= 's';
+}
+
+// Prepare the base params array with college code
+$query_params = [$selected_college];
+
+// Add search params if they exist
+if (!empty($search_params)) {
+    $query_params = array_merge($query_params, $search_params);
+}
+
+// Modify the existing query to include search
+$students_query = "SELECT id, student_id, created_at FROM students 
+                  WHERE college_code = ?" . $search_condition . " 
+                  ORDER BY created_at DESC";
+$stmt = $conn->prepare($students_query);
+
+// Dynamically bind parameters
+$stmt->bind_param($param_types, ...$query_params);
+$stmt->execute();
+$result = $stmt->get_result();
+
 // Get current date and time
 $current_datetime = date('F d, Y - h:i A');
 
 // Fetch registered students for the selected college
 $registered_students = [];
-$students_query = "SELECT id, student_id, created_at FROM students WHERE college_code = ? ORDER BY created_at DESC";
-$stmt = $conn->prepare($students_query);
-$stmt->bind_param("s", $selected_college);
-$stmt->execute();
-$result = $stmt->get_result();
-
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         $registered_students[] = $row;
@@ -539,6 +654,36 @@ if ($result->num_rows > 0) {
         .table-responsive {
             overflow-x: auto;
         }
+
+        /* Search Bar Styles */
+        .input-group {
+            height: 38px;
+        }
+
+        .input-group .form-control {
+            height: 100%;
+            border-right: none;
+            padding: 0.375rem 0.75rem;
+        }
+
+        .input-group .btn {
+            height: 100%;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-left: none;
+        }
+
+        .input-group .btn i {
+            font-size: 1rem;
+        }
+
+        /* Remove double borders between elements */
+        .input-group .form-control:not(:first-child),
+        .input-group .btn:not(:first-child) {
+            border-left: none;
+        }
         
         /* Responsive adjustments */
         @media (max-width: 992px) {
@@ -647,6 +792,27 @@ if ($result->num_rows > 0) {
             <i class="bi bi-person-plus"></i> Register Student
         </div>
         
+        <!-- Search Bar -->
+        <div class="d-flex justify-content-end mb-4">
+            <form action="register_student.php" method="get" class="w-auto">
+                <input type="hidden" name="college" value="<?php echo $selected_college; ?>">
+                <div class="input-group" style="width: 300px;">
+                    <input type="text" class="form-control" name="search" placeholder="Search student ID..." 
+                        value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
+                    <button class="btn btn-primary" type="submit" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    <?php if (isset($_GET['search']) && !empty($_GET['search'])): ?>
+                    <a href="register_student.php?college=<?php echo $selected_college; ?>" 
+                    class="btn btn-outline-secondary" 
+                    style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                        <i class="bi bi-x"></i>
+                    </a>
+                    <?php endif; ?>
+                </div>
+            </form>
+        </div>
+        
         <!-- Registration Form -->
         <div class="form-card">
             <div class="card-header-action">
@@ -722,6 +888,12 @@ if ($result->num_rows > 0) {
                 </div>
             </form>
         </div>
+
+        <div class="d-flex justify-content-end mb-3">
+            <a href="export_students.php?college=<?php echo $selected_college; ?>" class="btn btn-success">
+                <i class="bi bi-file-excel me-2"></i> Export to Excel
+            </a>
+        </div>
         
         <!-- Registered Students Table -->
         <div class="form-card mt-4">
@@ -739,6 +911,7 @@ if ($result->num_rows > 0) {
                                 <th>Student ID</th>
                                 <th>Date Registered</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -749,6 +922,17 @@ if ($result->num_rows > 0) {
                                     <td><?php echo date('M d, Y h:i A', strtotime($student['created_at'])); ?></td>
                                     <td>
                                         <span class="badge bg-success">Registered</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-2">
+                                            <a href="edit_student.php?id=<?php echo $student['id']; ?>" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </a>
+                                            <a href="register_student.php?college=<?php echo $selected_college; ?>&delete_id=<?php echo $student['id']; ?>" 
+                                            class="btn btn-sm btn-outline-danger btn-delete">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -761,6 +945,22 @@ if ($result->num_rows > 0) {
                 </div>
             <?php endif; ?>
         </div>
+
+        <!-- Search results message - add this right after the card-header-action div in the Registered Students section -->
+        <?php if (!empty($search_term)): ?>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            <?php 
+            $result_count = count($registered_students);
+            if ($result_count > 0): 
+            ?>
+                Found <?php echo $result_count; ?> student<?php echo $result_count != 1 ? 's' : ''; ?> matching "<?php echo htmlspecialchars($search_term); ?>"
+            <?php else: ?>
+                No students found matching "<?php echo htmlspecialchars($search_term); ?>"
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         
         <div class="timestamp">
             <i class="bi bi-clock"></i> Last updated: <?php echo $current_datetime; ?>
@@ -787,6 +987,15 @@ if ($result->num_rows > 0) {
                 toggleIcon.classList.remove('bi-chevron-right');
                 toggleIcon.classList.add('bi-chevron-left');
             }
+        });
+
+        // Confirm delete action
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                if (!confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
+                    e.preventDefault();
+                }
+            });
         });
 
     </script>

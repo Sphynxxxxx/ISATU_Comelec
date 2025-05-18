@@ -2,12 +2,6 @@
 session_start();
 require_once "../backend/connections/config.php"; 
 
-// Check if admin is logged in
-if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: admin_login.php");
-    exit();
-}
-
 // Logout functionality
 if(isset($_GET['logout'])) {
     session_destroy();
@@ -684,36 +678,7 @@ $current_datetime = date('F d, Y - h:i A');
             </div>
         </div>
         
-        <!-- Quick Actions -->
-        <div class="data-card mb-4">
-            <div class="card-header-action">
-                <h5 class="card-title">Quick Actions</h5>
-                <i class="bi bi-lightning-charge card-header-icon"></i>
-            </div>
-            
-            <div class="quick-actions">
-                <a href="register_student.php" class="action-btn">
-                    <i class="bi bi-person-plus action-icon"></i>
-                    <div class="action-text">Register Student</div>
-                    <div class="action-subtext">Add new student voters</div>
-                </a>
-                <a href="register_candidate.php" class="action-btn">
-                    <i class="bi bi-person-badge action-icon"></i>
-                    <div class="action-text">Register Candidate</div>
-                    <div class="action-subtext">Add election candidates</div>
-                </a>
-                <a href="election_results.php" class="action-btn">
-                    <i class="bi bi-bar-chart action-icon"></i>
-                    <div class="action-text">View Results</div>
-                    <div class="action-subtext">Check current standings</div>
-                </a>
-                <a href="print_reports.php" class="action-btn">
-                    <i class="bi bi-printer action-icon"></i>
-                    <div class="action-text">Print Reports</div>
-                    <div class="action-subtext">Generate election reports</div>
-                </a>
-            </div>
-        </div>
+
         
         <!-- Two Column Layout for charts and activity -->
         <div class="row">

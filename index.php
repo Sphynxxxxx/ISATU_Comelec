@@ -4,7 +4,7 @@ session_start();
 // Process form submission if any
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
     $_SESSION['selected_college'] = $_POST['college'];
-    header("Location: college_dashboard.php");
+    header("Location: user/college_dashboard.php");
     exit();
 }
 
@@ -291,9 +291,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
                     <p class="text-muted mb-0 fs-5">Iloilo Science and Technology University</p>
                 </div>
             </div>
-            <div class="vote-counter">
-                <i class="bi bi-people-fill me-2"></i> <span id="voterCount">0</span> votes
-            </div>
         </div>
         
         <form method="POST" action="" id="collegeForm">
@@ -317,7 +314,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
             
             <!-- 4 Colleges Section -->
             <div class="colleges-section">
-                <h4 class="section-title">Academic Colleges</h4>
+                <h4 class="section-title">Colleges</h4>
                 <div class="row">
                     <!-- College of Art and Sciences -->
                     <div class="col-md-6 col-lg-3">
@@ -379,7 +376,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
         <div class="text-center mt-4 mb-4">
             <div class="footer-text">
                 <div>
-                    <i class="bi bi-building me-2"></i> © 2025 Iloilo Science and Technology University | Est. 1905
+                    <i class="bi bi-building me-2"></i> © 2025 Iloilo Science and Technology University
                 </div>
                 <div>
                     </i> This website was developed by Larry Denver Biaco

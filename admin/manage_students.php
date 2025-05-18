@@ -2,11 +2,6 @@
 session_start();
 require_once "../backend/connections/config.php"; 
 
-// Check if admin is logged in
-if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: admin_login.php");
-    exit();
-}
 
 // Logout functionality
 if(isset($_GET['logout'])) {
@@ -15,14 +10,24 @@ if(isset($_GET['logout'])) {
     exit();
 }
 
-// Get total students count
-$total_students_query = "SELECT COUNT(*) as total FROM students";
+// Get total students count - Exclude candidates (where student_id is not used in candidates table)
+$total_students_query = "SELECT COUNT(*) as total FROM students 
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM candidates 
+                            WHERE candidates.student_id = students.id
+                        )";
 $total_students_result = $conn->query($total_students_query);
 $total_students = $total_students_result->fetch_assoc()['total'];
 
-// Get count of students by college
+// Get count of students by college - Exclude candidates
 $college_counts = [];
-$college_query = "SELECT college_code, COUNT(*) as count FROM students GROUP BY college_code";
+$college_query = "SELECT college_code, COUNT(*) as count 
+                 FROM students 
+                 WHERE NOT EXISTS (
+                     SELECT 1 FROM candidates 
+                     WHERE candidates.student_id = students.id
+                 )
+                 GROUP BY college_code";
 $college_result = $conn->query($college_query);
 
 // Define college names for display
@@ -49,16 +54,20 @@ if ($college_result->num_rows > 0) {
     }
 }
 
-// Get recent student registrations with combined colleges
+// Get recent student registrations with combined colleges - Exclude candidates
 $recent_registrations_query = "
     SELECT 
-        student_id,
-        GROUP_CONCAT(college_code ORDER BY college_code SEPARATOR ',') as colleges,
-        MAX(id) as id,
-        MAX(created_at) as created_at
-    FROM students
-    GROUP BY student_id
-    ORDER BY MAX(created_at) DESC
+        s.student_id,
+        GROUP_CONCAT(s.college_code ORDER BY s.college_code SEPARATOR ',') as colleges,
+        MAX(s.id) as id,
+        MAX(s.created_at) as created_at
+    FROM students s
+    WHERE NOT EXISTS (
+        SELECT 1 FROM candidates c 
+        WHERE c.student_id = s.id
+    )
+    GROUP BY s.student_id
+    ORDER BY MAX(s.created_at) DESC
     LIMIT 5
 ";
 
@@ -640,7 +649,6 @@ $current_datetime = date('F d, Y - h:i A');
                             <th>Student ID</th>
                             <th>College</th>
                             <th>Registered</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -667,13 +675,6 @@ $current_datetime = date('F d, Y - h:i A');
                                     <?php endforeach; ?>
                                 </td>
                                 <td><?php echo time_elapsed_string($registration['created_at']); ?></td>
-                                <td>
-                                    <div class="action-btns">
-                                        <a href="delete_student.php?id=<?php echo $registration['id']; ?>" class="btn btn-sm btn-outline-danger btn-delete">
-                                            <i class="bi bi-trash"></i> Delete
-                                        </a>
-                                    </div>
-                                </td>
                             </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -698,22 +699,25 @@ $current_datetime = date('F d, Y - h:i A');
     
     <script>
         // Toggle sidebar functionality
-        document.getElementById('toggleBtn').addEventListener('click', function() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            const toggleIcon = document.getElementById('toggleIcon');
-            
-            sidebar.classList.toggle('sidebar-collapsed');
-            mainContent.classList.toggle('main-content-expanded');
-            
-            if (sidebar.classList.contains('sidebar-collapsed')) {
-                toggleIcon.classList.remove('bi-chevron-left');
-                toggleIcon.classList.add('bi-chevron-right');
-            } else {
-                toggleIcon.classList.remove('bi-chevron-right');
-                toggleIcon.classList.add('bi-chevron-left');
-            }
-        });
+        const toggleBtn = document.getElementById('toggleBtn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                const toggleIcon = document.getElementById('toggleIcon');
+                
+                sidebar.classList.toggle('sidebar-collapsed');
+                mainContent.classList.toggle('main-content-expanded');
+                
+                if (sidebar.classList.contains('sidebar-collapsed')) {
+                    toggleIcon.classList.remove('bi-chevron-left');
+                    toggleIcon.classList.add('bi-chevron-right');
+                } else {
+                    toggleIcon.classList.remove('bi-chevron-right');
+                    toggleIcon.classList.add('bi-chevron-left');
+                }
+            });
+        }
         
         // Confirm delete
         const deleteLinks = document.querySelectorAll('.btn-delete');

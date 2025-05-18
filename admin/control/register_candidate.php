@@ -2,11 +2,7 @@
 session_start();
 require_once "../../backend/connections/config.php";
 
-// Check if admin is logged in
-if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: admin_login.php");
-    exit();
-}
+
 
 // Get college parameter from URL
 $college_code = isset($_GET['college']) ? $_GET['college'] : '';
@@ -28,41 +24,64 @@ $college_names = [
     'cit' => 'College of Industrial Technology'
 ];
 
-// Define positions for each college
+// Define positions for each college with order number (lower number = higher rank)
 $positions = [
-    'sr' => ['President', 'Vice President', 'Senator'],
+    'sr' => [
+        ['name' => 'President', 'order' => 1],
+        ['name' => 'Vice President', 'order' => 2],
+        ['name' => 'Senator', 'order' => 3]
+    ],
     'cas' => [
-        'Governor', 
-        'Vice Governor', 
-        'Secretary', 
-        'Assistant Secretary', 
-        'Treasurer', 
-        'Assistant Treasurer', 
-        'Auditor', 
-        'Assistant Auditor', 
-        'Business Manager', 
-        'Assistant Business Manager', 
-        'Public Relation Officer', 
-        'Social Media Manager', 
-        'Content Manager', 
-        'BS Math Representative', 
-        'BS Humserve Representative', 
-        'BAEL Representative', 
-        'BSCD Representative', 
-        'BS Bio Representative'
+        ['name' => 'Governor', 'order' => 1],
+        ['name' => 'Vice Governor', 'order' => 2],
+        ['name' => 'Secretary', 'order' => 3],
+        ['name' => 'Assistant Secretary', 'order' => 4],
+        ['name' => 'Treasurer', 'order' => 5],
+        ['name' => 'Assistant Treasurer', 'order' => 6],
+        ['name' => 'Auditor', 'order' => 7],
+        ['name' => 'Assistant Auditor', 'order' => 8],
+        ['name' => 'Business Manager', 'order' => 9],
+        ['name' => 'Assistant Business Manager', 'order' => 10],
+        ['name' => 'Public Relation Officer', 'order' => 11],
+        ['name' => 'Social Media Manager', 'order' => 12],
+        ['name' => 'Content Manager', 'order' => 13],
+        ['name' => 'BS Math Representative', 'order' => 14],
+        ['name' => 'BS Humserve Representative', 'order' => 15],
+        ['name' => 'BAEL Representative', 'order' => 16],
+        ['name' => 'BSCD Representative', 'order' => 17],
+        ['name' => 'BS Bio Representative', 'order' => 18]
     ],
     'cea' => [], // Will be blank for now
     'coe' => [], // Will be blank for now
     'cit' => []  // Will be blank for now
 ];
 
-// Define parties
-$parties = ['TDA', 'IND'];
+// Extract position names for the dropdown
+$position_names = [];
+foreach ($positions[$college_code] as $pos) {
+    $position_names[] = $pos['name'];
+}
+
+// Define position rank mapping for ordering
+$position_ranks = [];
+foreach ($positions as $college => $pos_list) {
+    foreach ($pos_list as $pos) {
+        $position_ranks[$pos['name']] = $pos['order'];
+    }
+}
+
+// Define parties for each college
+$parties = [
+    'sr' => ['TDA', 'IND', 'IROLES'],
+    'cas' => ['TDA', 'IND', 'IROLES'],
+    'cea' => ['TDA', 'IND', 'IROLES'],
+    'coe' => ['TDA', 'IND', 'IROLES'],
+    'cit' => ['TDA', 'IND', 'IROLES']
+];
 
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Validate and sanitize input
-    $student_id_number = isset($_POST['student_id']) ? trim($_POST['student_id']) : '';
     $name = isset($_POST['name']) ? trim($_POST['name']) : '';
     $position = isset($_POST['position']) ? trim($_POST['position']) : '';
     $party = isset($_POST['party']) ? trim($_POST['party']) : '';
@@ -71,9 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Validation
     $errors = [];
     
-    if (empty($student_id_number)) {
-        $errors[] = "Student ID is required";
-    }
     
     if (empty($name)) {
         $errors[] = "Candidate name is required";
@@ -83,8 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $errors[] = "Position is required";
     }
     
-    if ($college_code == 'sr' && empty($party)) {
-        $errors[] = "Party list is required for Student Republic candidates";
+    if (empty($party)) {
+        $errors[] = "Party list is required for all candidates";
     }
     
     // Image upload handling
@@ -127,29 +143,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // If no errors, insert into database
     if (empty($errors)) {
         try {
-            // First check if the student exists in the students table
-            $check_student_query = "SELECT id FROM students WHERE student_id = ? AND college_code = ?";
-            $stmt = $conn->prepare($check_student_query);
-            $stmt->bind_param("ss", $student_id_number, $college_code);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            // Get the student_id (primary key from students table)
-            if ($result->num_rows > 0) {
-                // Student exists, get their ID
-                $student = $result->fetch_assoc();
-                $student_id = $student['id'];
-            } else {
-                // Student doesn't exist, insert them first
-                $insert_student = "INSERT INTO students (student_id, college_code, created_at) VALUES (?, ?, NOW())";
-                $stmt = $conn->prepare($insert_student);
-                $stmt->bind_param("ss", $student_id_number, $college_code);
-                $stmt->execute();
-                
-                // Get the newly created student ID
-                $student_id = $conn->insert_id;
-            }
-            
             // Get the position_id from the positions table
             $position_query = "SELECT id FROM positions WHERE name = ?";
             $stmt = $conn->prepare($position_query);
@@ -162,12 +155,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $position_id = $position_row['id'];
             } else {
                 // Position doesn't exist, create a new one
+                // Get the display order from our position_ranks array
+                $display_order = isset($position_ranks[$position]) ? $position_ranks[$position] : 99;
+                
                 $insert_position = "INSERT INTO positions (name, max_candidates, max_votes, display_order) 
-                                   VALUES (?, 1, 1, 0)";
+                                   VALUES (?, 1, 1, ?)";
                 $stmt = $conn->prepare($insert_position);
-                $stmt->bind_param("s", $position);
+                $stmt->bind_param("si", $position, $display_order);
                 $stmt->execute();
                 $position_id = $conn->insert_id;
+                
+                // Verify the position was created
+                if (!$position_id) {
+                    throw new Exception("Position creation failed. Please try again.");
+                }
             }
             
             // Get or create the party_id
@@ -190,12 +191,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $stmt->bind_param("ss", $party, $description);
                     $stmt->execute();
                     $party_id = $conn->insert_id;
+                    
+                    // Verify the party was created
+                    if (!$party_id) {
+                        throw new Exception("Party creation failed. Please try again.");
+                    }
                 }
             }
             
-            // Now insert into the candidates table using the student's ID
+            // Now insert into the candidates table directly without creating a student record
             $insert_candidate = "INSERT INTO candidates (student_id, name, college_code, position, party, position_id, party_id, platform, photo_url, created_at) 
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            
+            // Use 0 as student_id since we're not linking to a student record
+            $student_id = 0;
             
             // Now insert the candidate with all the required fields
             $stmt = $conn->prepare($insert_candidate);
@@ -205,8 +214,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // Success message
                 $success_message = "Candidate registered successfully!";
                 
-                // Redirect after a delay
-                header("refresh:2;url=../manage_candidates.php");
+                // No immediate redirect to allow viewing the confirmation
+                // header("refresh:2;url=../manage_candidates.php");
             } else {
                 $errors[] = "Error registering candidate: " . $conn->error;
             }
@@ -215,6 +224,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 }
+
+// Get existing candidates for this college joined with positions table to get display_order
+$candidates_query = "SELECT c.id, c.name, c.position, c.party, c.photo_url, c.created_at, p.display_order
+                    FROM candidates c
+                    LEFT JOIN positions p ON c.position_id = p.id
+                    WHERE c.college_code = ?
+                    ORDER BY p.display_order, c.name";
+
+$stmt = $conn->prepare($candidates_query);
+$stmt->bind_param("s", $college_code);
+$stmt->execute();
+$candidates_result = $stmt->get_result();
+
+// Group candidates by position
+$candidates_by_position = [];
+while ($candidate = $candidates_result->fetch_assoc()) {
+    if (!isset($candidates_by_position[$candidate['position']])) {
+        $candidates_by_position[$candidate['position']] = [];
+    }
+    $candidates_by_position[$candidate['position']][] = $candidate;
+}
+
+// Sort positions by their rank
+uksort($candidates_by_position, function($a, $b) use ($position_ranks) {
+    $rank_a = isset($position_ranks[$a]) ? $position_ranks[$a] : 999;
+    $rank_b = isset($position_ranks[$b]) ? $position_ranks[$b] : 999;
+    return $rank_a - $rank_b;
+});
 
 // Current date and time
 $current_datetime = date('F d, Y - h:i A');
@@ -500,6 +537,160 @@ $current_datetime = date('F d, Y - h:i A');
             border-radius: 10px;
             margin-bottom: 20px;
         }
+
+        /* Position styling */
+        .position-title {
+            margin-bottom: 20px;
+        }
+        
+        .position-badge {
+            font-size: 0.9rem;
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+        
+        .position-group {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .position-group:last-child {
+            border-bottom: none;
+        }
+        
+        /* Candidate card styling - Side by side layout */
+        .candidates-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin: -10px;
+        }
+        
+        .candidate-wrapper {
+            padding: 10px;
+            width: 33.333%;
+        }
+        
+        @media (max-width: 1200px) {
+            .candidate-wrapper {
+                width: 50%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .candidate-wrapper {
+                width: 100%;
+            }
+        }
+        
+        .candidate-card {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #eaeaea;
+        }
+        
+        .candidate-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+        
+        .candidate-photo {
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--isatu-light);
+            position: relative;
+        }
+        
+        .candidate-photo img {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 4px solid white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .placeholder-photo {
+            width: 120px;
+            height: 120px;
+            background-color: var(--isatu-primary);
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: 4px solid white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .candidate-info {
+            padding: 20px;
+            text-align: center;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .candidate-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--isatu-primary);
+            margin-bottom: 10px;
+        }
+        
+        .candidate-party {
+            margin-bottom: 15px;
+        }
+        
+        .candidate-date {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: auto;
+        }
+        
+        .candidate-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 0 20px 20px 20px;
+        }
+        
+        .candidate-actions .btn {
+            flex: 1;
+        }
+        
+        .party-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .party-tda {
+            background-color: rgba(25, 135, 84, 0.1);
+            color: #198754;
+        }
+        
+        .party-ind {
+            background-color: rgba(108, 117, 125, 0.1);
+            color: #6c757d;
+        }
+        
+        .party-iroles {
+            background-color: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+        }
         
         /* Responsive adjustments */
         @media (max-width: 992px) {
@@ -621,12 +812,7 @@ $current_datetime = date('F d, Y - h:i A');
             
             <form action="register_candidate.php?college=<?php echo $college_code; ?>" method="post" enctype="multipart/form-data">
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="student_id" class="form-label">Student ID</label>
-                            <input type="text" class="form-control" id="student_id" name="student_id" placeholder="e.g. 2022-1234" required>
-                        </div>
-                    </div>
+
                     
                     <div class="col-md-6">
                         <div class="form-group">
@@ -635,33 +821,29 @@ $current_datetime = date('F d, Y - h:i A');
                         </div>
                     </div>
                     
-                    <div class="<?php echo $college_code == 'sr' ? 'col-md-6' : 'col-md-12'; ?>">
+                    <div class="col-md-6">
                         <div class="form-group">
                             <label for="position" class="form-label">Position</label>
                             <select class="form-select" id="position" name="position" required>
                                 <option value="">Select Position</option>
-                                <?php foreach($positions[$college_code] as $position): ?>
+                                <?php foreach($position_names as $position): ?>
                                     <option value="<?php echo $position; ?>"><?php echo $position; ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
                     
-                    <?php if($college_code == 'sr'): ?>
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="party" class="form-label">Party List</label>
                             <select class="form-select" id="party" name="party" required>
                                 <option value="">Select Party</option>
-                                <?php foreach($parties as $party): ?>
+                                <?php foreach($parties[$college_code] as $party): ?>
                                     <option value="<?php echo $party; ?>"><?php echo $party; ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
-                    <?php else: ?>
-                    <input type="hidden" name="party" value="INDEPENDENT">
-                    <?php endif; ?>
                     
                     <div class="col-md-12">
                         <div class="form-group">
@@ -691,6 +873,75 @@ $current_datetime = date('F d, Y - h:i A');
             </form>
         </div>
         
+        <!-- Current Candidates Display -->
+        <div class="form-card mt-4">
+            <h5 class="form-subtitle">
+                <i class="bi bi-list-ul"></i> Current Candidates - <?php echo $college_names[$college_code]; ?>
+            </h5>
+            
+            <?php if (empty($candidates_by_position)): ?>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> No candidates registered for this college yet.
+                </div>
+            <?php else: ?>
+                <?php foreach ($candidates_by_position as $position => $candidates): ?>
+                    <div class="position-group">
+                        <h6 class="position-title">
+                            <span class="badge bg-primary position-badge"><?php echo $position; ?></span>
+                        </h6>
+                        
+                        <div class="candidates-row">
+                            <?php foreach ($candidates as $candidate): ?>
+                                <div class="candidate-wrapper">
+                                    <div class="candidate-card">
+                                        <div class="candidate-photo">
+                                            <?php if (!empty($candidate['photo_url'])): ?>
+                                                <img src="../../uploads/candidates/<?php echo $candidate['photo_url']; ?>" 
+                                                     alt="<?php echo htmlspecialchars($candidate['name']); ?>">
+                                            <?php else: ?>
+                                                <div class="placeholder-photo">
+                                                    <?php echo strtoupper(substr($candidate['name'], 0, 1)); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        
+                                        <div class="candidate-info">
+                                            <div class="candidate-name"><?php echo htmlspecialchars($candidate['name']); ?></div>
+                                            
+                                            <div class="candidate-party">
+                                                <?php 
+                                                $party_class = strtolower($candidate['party']) === 'tda' ? 'party-tda' : 
+                                                              (strtolower($candidate['party']) === 'iroles' ? 'party-iroles' : 'party-ind');
+                                                ?>
+                                                <span class="party-badge <?php echo $party_class; ?>">
+                                                    <?php echo htmlspecialchars($candidate['party']); ?>
+                                                </span>
+                                            </div>
+                                            
+                                            <div class="candidate-date">
+                                                <i class="bi bi-calendar3"></i> 
+                                                <?php echo date('M d, Y', strtotime($candidate['created_at'])); ?>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="candidate-actions">
+                                            <a href="edit_candidate.php?id=<?php echo $candidate['id']; ?>" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    onclick="confirmDelete(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars(addslashes($candidate['name'])); ?>')">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+        
         <div class="timestamp">
             <i class="bi bi-clock"></i> Last updated: <?php echo $current_datetime; ?>
         </div>
@@ -700,22 +951,25 @@ $current_datetime = date('F d, Y - h:i A');
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Toggle sidebar functionality
-        document.getElementById('toggleBtn').addEventListener('click', function() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            const toggleIcon = document.getElementById('toggleIcon');
-            
-            sidebar.classList.toggle('sidebar-collapsed');
-            mainContent.classList.toggle('main-content-expanded');
-            
-            if (sidebar.classList.contains('sidebar-collapsed')) {
-                toggleIcon.classList.remove('bi-chevron-left');
-                toggleIcon.classList.add('bi-chevron-right');
-            } else {
-                toggleIcon.classList.remove('bi-chevron-right');
-                toggleIcon.classList.add('bi-chevron-left');
-            }
-        });
+        const toggleBtn = document.getElementById('toggleBtn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                const toggleIcon = document.getElementById('toggleIcon');
+                
+                sidebar.classList.toggle('sidebar-collapsed');
+                mainContent.classList.toggle('main-content-expanded');
+                
+                if (sidebar.classList.contains('sidebar-collapsed')) {
+                    toggleIcon.classList.remove('bi-chevron-left');
+                    toggleIcon.classList.add('bi-chevron-right');
+                } else {
+                    toggleIcon.classList.remove('bi-chevron-right');
+                    toggleIcon.classList.add('bi-chevron-left');
+                }
+            });
+        }
         
         // Image preview
         document.getElementById('photo').addEventListener('change', function(e) {
@@ -735,6 +989,13 @@ $current_datetime = date('F d, Y - h:i A');
                 preview.style.display = 'none';
             }
         });
+        
+        // Confirm delete function
+        function confirmDelete(candidateId, candidateName) {
+            if (confirm(`Are you sure you want to delete ${candidateName} from the candidates list?`)) {
+                window.location.href = `delete_candidate.php?id=${candidateId}&college=<?php echo $college_code; ?>`;
+            }
+        }
     </script>
 </body>
 </html>

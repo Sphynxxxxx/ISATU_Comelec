@@ -2,11 +2,6 @@
 session_start();
 require_once "../backend/connections/config.php"; 
 
-// Check if admin is logged in
-if(!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: admin_login.php");
-    exit();
-}
 
 // Logout functionality
 if(isset($_GET['logout'])) {
