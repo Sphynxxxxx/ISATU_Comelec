@@ -1,138 +1,45 @@
 <?php
 session_start();
-require_once "../backend/connections/config.php"; 
+require_once "../backend/connections/config.php";
 
-// Logout functionality
-if(isset($_GET['logout'])) {
-    session_destroy();
-    header("Location: ../admin.php");
-    exit();
-}
+// Set timezone to Philippines
+date_default_timezone_set('Asia/Manila');
 
-// Get total students count
-$total_students_query = "SELECT COUNT(*) as total FROM students";
-$total_students_result = $conn->query($total_students_query);
-$total_students = $total_students_result->fetch_assoc()['total'];
-
-// Get total votes count
-$total_votes_query = "SELECT COUNT(*) as total FROM votes";
-$total_votes_result = $conn->query($total_votes_query);
-$total_votes = $total_votes_result->fetch_assoc()['total'];
-
-// Calculate participation rate
-$participation_rate = ($total_students > 0) ? round(($total_votes / $total_students) * 100, 1) : 0;
-
-// Get votes by college
-$college_votes = [];
-$college_query = "SELECT 
-    college_code, 
-    COUNT(*) as vote_count 
-    FROM votes 
-    JOIN students ON votes.student_id = students.id 
-    GROUP BY college_code";
-
-$college_result = $conn->query($college_query);
-
-// Initialize all colleges with zero votes
-$college_votes = [
-    'sr' => 0, 
-    'cas' => 0, 
-    'cea' => 0, 
-    'coe' => 0, 
-    'cit' => 0
-];
-
-// Fill in actual votes from database
-if ($college_result->num_rows > 0) {
-    while ($row = $college_result->fetch_assoc()) {
-        $college_code = strtolower($row['college_code']);
-        $college_votes[$college_code] = $row['vote_count'];
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $start_time = $_POST['start_date'] . ' ' . $_POST['start_time'];
+    $end_time = $_POST['end_date'] . ' ' . $_POST['end_time'];
+    
+    // Validate dates
+    $start_datetime = new DateTime($start_time);
+    $end_datetime = new DateTime($end_time);
+    $now = new DateTime();
+    
+    $error = "";
+    
+    if ($end_datetime <= $start_datetime) {
+        $error = "End time must be after start time";
+    }
+    
+    if (empty($error)) {
+        // Deactivate all existing schedules
+        $deactivate_query = "UPDATE voting_schedule SET is_active = 0 WHERE is_active = 1";
+        $conn->query($deactivate_query);
+        
+        // Create new schedule
+        $insert_query = "INSERT INTO voting_schedule (start_time, end_time) VALUES (?, ?)";
+        $stmt = $conn->prepare($insert_query);
+        $stmt->bind_param("ss", $start_time, $end_time);
+        
+        if ($stmt->execute()) {
+            $success = "Voting schedule has been successfully updated";
+        } else {
+            $error = "Error updating schedule: " . $conn->error;
+        }
+        
+        $stmt->close();
     }
 }
-
-// Get recent activity
-$recent_activity_query = "
-    (SELECT 
-        'vote' as activity_type, 
-        CONCAT(students.student_id, ' (', UPPER(students.college_code), ')') as description,
-        votes.created_at as activity_time
-    FROM votes
-    JOIN students ON votes.student_id = students.id
-    ORDER BY votes.created_at DESC
-    LIMIT 5)
-    
-    UNION
-    
-    (SELECT 
-        'register' as activity_type,
-        CONCAT('New candidate registered: ', c.student_id, ' (', UPPER(s.college_code), ')') as description,
-        c.created_at as activity_time
-    FROM candidates c
-    JOIN students s ON c.student_id = s.id
-    ORDER BY c.created_at DESC
-    LIMIT 5)
-    
-    UNION
-    
-    (SELECT 
-        'update' as activity_type,
-        CONCAT('Student updated: ', student_id, ' (', UPPER(college_code), ')') as description,
-        updated_at as activity_time
-    FROM students
-    WHERE updated_at IS NOT NULL
-    ORDER BY updated_at DESC
-    LIMIT 5)
-    
-    UNION
-    
-    (SELECT 
-        'register' as activity_type,
-        CONCAT('New student registered: ', student_id, ' (', UPPER(college_code), ')') as description,
-        created_at as activity_time
-    FROM students
-    ORDER BY created_at DESC
-    LIMIT 5)
-    
-    ORDER BY activity_time DESC
-    LIMIT 5
-";
-
-$recent_activity_result = $conn->query($recent_activity_query);
-$recent_activities = [];
-
-if ($recent_activity_result && $recent_activity_result->num_rows > 0) {
-    while ($row = $recent_activity_result->fetch_assoc()) {
-        $recent_activities[] = $row;
-    }
-}
-
-// Function to format time difference
-function time_elapsed_string($datetime) {
-    $now = new DateTime;
-    $ago = new DateTime($datetime);
-    $diff = $now->diff($ago);
-
-    if ($diff->y > 0) {
-        return $diff->y . ' year' . ($diff->y > 1 ? 's' : '') . ' ago';
-    }
-    if ($diff->m > 0) {
-        return $diff->m . ' month' . ($diff->m > 1 ? 's' : '') . ' ago';
-    }
-    if ($diff->d > 0) {
-        return $diff->d . ' day' . ($diff->d > 1 ? 's' : '') . ' ago';
-    }
-    if ($diff->h > 0) {
-        return $diff->h . ' hour' . ($diff->h > 1 ? 's' : '') . ' ago';
-    }
-    if ($diff->i > 0) {
-        return $diff->i . ' minute' . ($diff->i > 1 ? 's' : '') . ' ago';
-    }
-    return 'just now';
-}
-
-// Get current date and time
-$current_datetime = date('F d, Y - h:i A');
-
 
 // Get current voting schedule
 $schedule_query = "SELECT * FROM voting_schedule WHERE is_active = 1 ORDER BY id DESC LIMIT 1";
@@ -142,22 +49,16 @@ $voting_schedule = $schedule_result->fetch_assoc();
 // Check if voting is currently active
 $current_time = date('Y-m-d H:i:s');
 $voting_active = false;
-$time_remaining = "";
+$status_message = "";
 
 if ($voting_schedule) {
-    $start_time = new DateTime($voting_schedule['start_time']);
-    $end_time = new DateTime($voting_schedule['end_time']);
-    $now = new DateTime();
-    
-    if ($now >= $start_time && $now <= $end_time) {
+    if ($current_time >= $voting_schedule['start_time'] && $current_time <= $voting_schedule['end_time']) {
         $voting_active = true;
-        $interval = $now->diff($end_time);
-        $time_remaining = $interval->format('%a days, %h hours, %i minutes');
-    } elseif ($now < $start_time) {
-        $interval = $now->diff($start_time);
-        $time_remaining = "Starts in " . $interval->format('%a days, %h hours, %i minutes');
+        $status_message = "<span class='badge bg-success'>Voting is currently ACTIVE</span>";
+    } elseif ($current_time < $voting_schedule['start_time']) {
+        $status_message = "<span class='badge bg-warning'>Voting is scheduled to start soon</span>";
     } else {
-        $time_remaining = "Voting period has ended";
+        $status_message = "<span class='badge bg-danger'>Voting period has ended</span>";
     }
 }
 ?>
@@ -167,7 +68,7 @@ if ($voting_schedule) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - ISATU Election System</title>
+    <title>Manage Voting Schedule - ISATU Election System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
@@ -559,6 +460,17 @@ if ($voting_schedule) {
             color: #ffc107;
         }
         
+        /* Timezone indicator */
+        .timezone-indicator {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: rgba(12, 59, 93, 0.1);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+            color: var(--isatu-primary);
+        }
+        
         /* Responsive adjustments */
         @media (max-width: 992px) {
             .sidebar {
@@ -630,7 +542,7 @@ if ($voting_schedule) {
         </div>
         
         <div class="mt-4">
-            <a href="admin_dashboard.php" class="nav-link active">
+            <a href="admin_dashboard.php" class="nav-link">
                 <i class="bi bi-speedometer2"></i>
                 <span>Dashboard</span>
             </a>
@@ -646,6 +558,10 @@ if ($voting_schedule) {
                 <i class="bi bi-bar-chart"></i>
                 <span>Election Results</span>
             </a>
+            <a href="manage_schedule.php" class="nav-link active">
+                <i class="bi bi-calendar-event"></i>
+                <span>Voting Schedule</span>
+            </a>
             <a href="admin_dashboard.php?logout=1" class="nav-link text-danger">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>Logout</span>
@@ -656,190 +572,146 @@ if ($voting_schedule) {
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
         <div class="page-title">
-            <i class="bi bi-speedometer2"></i> Dashboard
-        </div>
-
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="data-card">
-                    <div class="card-header-action">
-                        <h5 class="card-title">Voting Schedule</h5>
-                        <a href="manage_schedule.php" class="btn btn-sm btn-primary">
-                            <i class="bi bi-gear"></i> Manage Schedule
-                        </a>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <?php if ($voting_schedule): ?>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="fw-bold">Start Time:</label>
-                                        <p><?php echo date('F d, Y - h:i A', strtotime($voting_schedule['start_time'])); ?></p>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="fw-bold">End Time:</label>
-                                        <p><?php echo date('F d, Y - h:i A', strtotime($voting_schedule['end_time'])); ?></p>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label class="fw-bold">Status:</label>
-                                        <?php if ($voting_active): ?>
-                                            <p><span class="badge bg-success">Voting Active</span> <br>
-                                            <small>Remaining time: <?php echo $time_remaining; ?></small></p>
-                                        <?php else: ?>
-                                            <p><span class="badge bg-danger">Voting Inactive</span> <br>
-                                            <small><?php echo $time_remaining; ?></small></p>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php else: ?>
-                            <div class="alert alert-warning">
-                                <i class="bi bi-exclamation-triangle"></i> No voting schedule has been set up. 
-                                <a href="manage_schedule.php" class="alert-link">Set up a voting schedule</a> to enable the voting process.
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
+            <i class="bi bi-calendar-event"></i> Manage Voting Schedule
+            <span class="timezone-indicator">PHT (UTC+8)</span>
         </div>
         
-        <!-- Stats Row -->
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="stat-title">Total Students</div>
-                            <div class="stat-value"><?php echo $total_students; ?></div>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-people"></i>
-                        </div>
-                    </div>
-                </div>
+        <?php if (isset($error) && !empty($error)): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-circle-fill"></i> <?php echo $error; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="stat-title">Total Votes Cast</div>
-                            <div class="stat-value"><?php echo $total_votes; ?></div>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-check2-square"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="stat-title">Participation Rate</div>
-                            <div class="stat-value"><?php echo $participation_rate; ?>%</div>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-graph-up"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <?php endif; ?>
         
-
+        <?php if (isset($success) && !empty($success)): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill"></i> <?php echo $success; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
         
-        <!-- Two Column Layout for charts and activity -->
-        <div class="row">
-            <!-- Vote Distribution -->
-            <div class="col-lg-6">
-                <div class="data-card">
-                    <div class="card-header-action">
-                        <h5 class="card-title">Vote Distribution by College</h5>
-                        <i class="bi bi-pie-chart card-header-icon"></i>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <?php
-                        // Define college names for display
-                        $college_names = [
-                            'sr' => 'Student Republic',
-                            'cas' => 'College of Arts and Sciences',
-                            'cea' => 'College of Engineering and Architecture',
-                            'coe' => 'College of Education',
-                            'cit' => 'College of Industrial Technology'
-                        ];
-                        
-                        // Display progress bars for each college
-                        foreach ($college_votes as $college_code => $votes) {
-                            $percentage = ($total_votes > 0) ? round(($votes / $total_votes) * 100, 1) : 0;
-                            $college_name = isset($college_names[$college_code]) ? $college_names[$college_code] : ucfirst($college_code);
-                        ?>
-                        <div class="college-progress-label">
-                            <span><?php echo $college_name; ?></span>
-                            <span><?php echo $votes; ?> votes</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar" role="progressbar" 
-                                style="width: <?php echo $percentage; ?>%" 
-                                aria-valuenow="<?php echo $percentage; ?>" 
-                                aria-valuemin="0" aria-valuemax="100">
-                                <?php echo $percentage; ?>%
-                            </div>
-                        </div>
-                        <?php } ?>
-                    </div>
-                </div>
+        <!-- Current Schedule -->
+        <div class="data-card mb-4">
+            <div class="card-header-action">
+                <h5 class="card-title">Current Voting Schedule</h5>
+                <?php echo $status_message; ?>
             </div>
             
-            <!-- Recent Activity -->
-            <div class="col-lg-6">
-                <div class="data-card">
-                    <div class="card-header-action">
-                        <h5 class="card-title">Recent Activity</h5>
-                        <i class="bi bi-activity card-header-icon"></i>
+            <div class="mt-4">
+                <?php if ($voting_schedule): ?>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="fw-bold">Start Time (PHT):</label>
+                                <p><?php echo date('F d, Y - h:i A', strtotime($voting_schedule['start_time'])); ?></p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="fw-bold">End Time (PHT):</label>
+                                <p><?php echo date('F d, Y - h:i A', strtotime($voting_schedule['end_time'])); ?></p>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="recent-activity">
-                        <table class="activity-table">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Description</th>
-                                    <th>Time</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (empty($recent_activities)): ?>
-                                <tr>
-                                    <td colspan="3" class="text-center">No recent activity found</td>
-                                </tr>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Setting a new schedule will deactivate the current one.
+                    </div>
+                    
+                    <!-- Show countdown if schedule exists -->
+                    <div class="card bg-light mt-3">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="bi bi-hourglass-split me-2"></i> 
+                                <?php if ($voting_active): ?>
+                                    Time Remaining Until Voting Ends:
+                                <?php elseif ($current_time < $voting_schedule['start_time']): ?>
+                                    Time Until Voting Begins:
                                 <?php else: ?>
-                                    <?php foreach ($recent_activities as $activity): ?>
-                                    <tr>
-                                        <td>
-                                            <span class="activity-badge badge-<?php echo $activity['activity_type']; ?>">
-                                                <?php echo ucfirst($activity['activity_type']); ?>
-                                            </span>
-                                        </td>
-                                        <td><?php echo $activity['description']; ?></td>
-                                        <td><?php echo time_elapsed_string($activity['activity_time']); ?></td>
-                                    </tr>
-                                    <?php endforeach; ?>
+                                    Voting Period Has Ended
                                 <?php endif; ?>
-                            </tbody>
-                        </table>
+                            </h6>
+                            
+                            <?php if ($voting_active || $current_time < $voting_schedule['start_time']): ?>
+                                <div class="text-center" id="countdown-display">
+                                    <div class="d-inline-block px-3 py-2 bg-white rounded shadow-sm mx-1">
+                                        <span id="days" class="fs-4 fw-bold">00</span>
+                                        <span class="d-block small">Days</span>
+                                    </div>
+                                    <div class="d-inline-block px-3 py-2 bg-white rounded shadow-sm mx-1">
+                                        <span id="hours" class="fs-4 fw-bold">00</span>
+                                        <span class="d-block small">Hours</span>
+                                    </div>
+                                    <div class="d-inline-block px-3 py-2 bg-white rounded shadow-sm mx-1">
+                                        <span id="minutes" class="fs-4 fw-bold">00</span>
+                                        <span class="d-block small">Minutes</span>
+                                    </div>
+                                    <div class="d-inline-block px-3 py-2 bg-white rounded shadow-sm mx-1">
+                                        <span id="seconds" class="fs-4 fw-bold">00</span>
+                                        <span class="d-block small">Seconds</span>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> No active voting schedule found. Set up a new schedule below.
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <!-- Set New Schedule Form -->
+        <div class="data-card">
+            <div class="card-header-action">
+                <h5 class="card-title">Set New Voting Schedule</h5>
+                <i class="bi bi-calendar-plus card-header-icon"></i>
+            </div>
+            
+            
+            <form method="POST" action="" class="mt-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="start_time" class="form-label">Start Time (PHT)</label>
+                            <input type="time" class="form-control" id="start_time" name="start_time" required>
+                        </div>
                     </div>
                 </div>
-            </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="end_time" class="form-label">End Time (PHT)</label>
+                            <input type="time" class="form-control" id="end_time" name="end_time" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 text-end">
+                    <a href="admin_dashboard.php" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-clock"></i> Set Voting Schedule
+                    </button>
+                </div>
+            </form>
         </div>
         
         <div class="timestamp">
-            <i class="bi bi-clock"></i> Last updated: <?php echo $current_datetime; ?>
+            <i class="bi bi-clock"></i> Last updated: <?php echo date('F d, Y - h:i A'); ?> <span class="badge bg-secondary">PHT</span>
         </div>
     </div>
     
@@ -847,32 +719,55 @@ if ($voting_schedule) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // Toggle sidebar functionality
-        document.getElementById('toggleBtn').addEventListener('click', function() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            const toggleIcon = document.getElementById('toggleIcon');
+        // Set default values for the form
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const formatDate = (date) => {
+                return date.toISOString().split('T')[0];
+            };
             
-            sidebar.classList.toggle('sidebar-collapsed');
-            mainContent.classList.toggle('main-content-expanded');
+            document.getElementById('start_date').value = formatDate(today);
             
-            if (sidebar.classList.contains('sidebar-collapsed')) {
-                toggleIcon.classList.remove('bi-chevron-left');
-                toggleIcon.classList.add('bi-chevron-right');
-            } else {
-                toggleIcon.classList.remove('bi-chevron-right');
-                toggleIcon.classList.add('bi-chevron-left');
-            }
-        });
-        
-        // Confirm delete
-        const deleteLinks = document.querySelectorAll('.btn-delete');
-        deleteLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
-                if (!confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
-                    e.preventDefault();
+            // Set default end date to 1 week from today
+            const endDate = new Date();
+            endDate.setDate(today.getDate() + 7);
+            document.getElementById('end_date').value = formatDate(endDate);
+            
+            // Set default times
+            document.getElementById('start_time').value = '08:00';
+            document.getElementById('end_time').value = '17:00';
+            
+            <?php if (($voting_active || $current_time < $voting_schedule['start_time']) && $voting_schedule): ?>
+            // Initialize countdown
+            const targetDate = new Date("<?php echo $voting_active ? $voting_schedule['end_time'] : $voting_schedule['start_time']; ?>").getTime();
+            
+            // Update the countdown every second
+            const countdownTimer = setInterval(function() {
+                // Get current date and time
+                const now = new Date().getTime();
+                
+                // Find the time remaining
+                const distance = targetDate - now;
+                
+                // Time calculations
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                
+                // Display the result
+                document.getElementById("days").innerHTML = days.toString().padStart(2, '0');
+                document.getElementById("hours").innerHTML = hours.toString().padStart(2, '0');
+                document.getElementById("minutes").innerHTML = minutes.toString().padStart(2, '0');
+                document.getElementById("seconds").innerHTML = seconds.toString().padStart(2, '0');
+                
+                // If the countdown is finished, refresh the page to update status
+                if (distance < 0) {
+                    clearInterval(countdownTimer);
+                    location.reload();
                 }
-            });
+            }, 1000);
+            <?php endif; ?>
         });
     </script>
 </body>

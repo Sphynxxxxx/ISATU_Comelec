@@ -228,6 +228,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['student_id'])) {
             max-width: 80px;
             margin-right: 25px;
         }
+
+        .button-container {
+            gap: 10px;
+        }
+
+        @media (max-width: 576px) {
+            .button-container {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .btn-back, .btn-verify {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+        }
         
         @media (max-width: 767px) {
             .isatu-header {
@@ -321,8 +337,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['student_id'])) {
                     <div class="form-text">Enter your student ID in the format: YYYY-NNNN-A</div>
                 </div>
                 
-                <div class="d-flex justify-content-between mt-4">
-                    <a href="../index.php" class="btn btn-back">
+                <div class="d-flex justify-content-between mt-4 flex-wrap button-container">
+                    <a href="../index.php" class="btn btn-back mb-3 mb-md-0">
                         <i class="bi bi-arrow-left me-2"></i> Back
                     </a>
                     <button type="submit" class="btn btn-verify">
@@ -338,7 +354,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['student_id'])) {
                     <i class="bi bi-building me-2"></i> © 2025 Iloilo Science and Technology University
                 </div>
                 <div>
-                    </i> This website was developed by Larry Denver Biaco
+                    </i>Developed by Larry Denver Biaco
                 </div>
             </div>
         </div>

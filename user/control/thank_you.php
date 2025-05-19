@@ -10,6 +10,12 @@ if (!isset($_SESSION['vote_success']) || $_SESSION['vote_success'] !== true) {
 // Get college information
 $college_code = $_SESSION['selected_college'];
 
+// Get the timestamp of when the vote was actually cast
+$vote_timestamp = isset($_SESSION['vote_timestamp']) ? $_SESSION['vote_timestamp'] : time();
+
+// Set the timezone to Philippines (PHT)
+date_default_timezone_set('Asia/Manila');
+
 // College names for display
 $college_names = [
     'sr' => 'Student Republic',
@@ -21,6 +27,7 @@ $college_names = [
 
 // Clear session data except for necessary info
 $student_number = $_SESSION['student_number'];
+$vote_time = date('F j, Y, g:i a', $vote_timestamp); // Format the stored timestamp with PHT
 session_unset();
 $_SESSION['voted'] = true;
 ?>
@@ -196,6 +203,39 @@ $_SESSION['voted'] = true;
             border-radius: 30px;
             display: inline-block;
         }
+        
+        /* Add a watermark style for the receipt */
+        .receipt-watermark {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .receipt-watermark::after {
+            content: "VERIFIED";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 3rem;
+            font-weight: bold;
+            color: rgba(40, 167, 69, 0.1);
+            pointer-events: none;
+            z-index: 1;
+            white-space: nowrap;
+        }
+        
+        /* Receipt timestamp style */
+        .timestamp {
+            font-weight: 600;
+            color: var(--isatu-primary);
+        }
+        
+        /* Philippine time indicator */
+        .timezone-indicator {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -218,7 +258,7 @@ $_SESSION['voted'] = true;
             <h1>Thank You for Voting!</h1>
             <p class="fs-5 text-muted">Your vote has been successfully recorded.</p>
             
-            <div class="receipt-info">
+            <div class="receipt-info receipt-watermark">
                 <div class="mb-2">
                     <strong>Student ID:</strong> <?php echo $student_number; ?>
                 </div>
@@ -226,7 +266,8 @@ $_SESSION['voted'] = true;
                     <strong>College:</strong> <?php echo $college_names[$college_code]; ?>
                 </div>
                 <div class="mb-2">
-                    <strong>Date & Time:</strong> <?php echo date('F j, Y, g:i a'); ?>
+                    <strong>Date & Time:</strong> <span class="timestamp"><?php echo $vote_time; ?></span>
+                    <span class="timezone-indicator">(PHT)</span>
                 </div>
                 <div>
                     <strong>Status:</strong> <span class="text-success">Vote Confirmed</span>
@@ -235,6 +276,7 @@ $_SESSION['voted'] = true;
             
             <p class="mt-3">Your participation in the election process is important to ISATU.</p>
             <p>Results will be published after the election period ends.</p>
+            <p><strong>Note:</strong> Take a screenshot and send to your respective Class Mayors.</p>
             
             <a href="../../index.php" class="btn btn-home">
                 <i class="bi bi-house-door-fill me-2"></i> Return to Home
@@ -247,7 +289,7 @@ $_SESSION['voted'] = true;
                     <i class="bi bi-building me-2"></i> © 2025 Iloilo Science and Technology University
                 </div>
                 <div>
-                    </i> This website was developed by Larry Denver Biaco
+                    </i>Developed by Larry Denver Biaco
                 </div>
             </div>
         </div>

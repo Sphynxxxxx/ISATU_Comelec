@@ -567,10 +567,6 @@ $current_datetime = date('F d, Y - h:i A');
                 <i class="bi bi-bar-chart"></i>
                 <span>Election Results</span>
             </a>
-            <a href="election_settings.php" class="nav-link">
-                <i class="bi bi-gear"></i>
-                <span>Election Settings</span>
-            </a>
             <a href="manage_students.php?logout=1" class="nav-link text-danger">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>Logout</span>
@@ -591,10 +587,10 @@ $current_datetime = date('F d, Y - h:i A');
                 <i class="bi bi-person-plus action-icon"></i>
                 <span class="action-text">Register New Student</span>
             </a>
-            <a href="export_students.php" class="action-btn">
+            <!--<a href="export_students.php" class="action-btn">
                 <i class="bi bi-file-earmark-arrow-down action-icon"></i>
                 <span class="action-text">Export Students</span>
-            </a>
+            </a>-->
         </div>
         
         <!-- Register Student by College Cards -->

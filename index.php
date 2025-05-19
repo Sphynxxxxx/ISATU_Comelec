@@ -1,5 +1,9 @@
 <?php
 session_start();
+require_once "backend/connections/config.php"; // Make sure this path is correct
+
+// Set timezone to Philippines
+date_default_timezone_set('Asia/Manila');
 
 // Process form submission if any
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
@@ -8,6 +12,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
     exit();
 }
 
+// Get voting schedule from database
+$schedule_query = "SELECT * FROM voting_schedule WHERE is_active = 1 ORDER BY id DESC LIMIT 1";
+$schedule_result = $conn->query($schedule_query);
+$voting_schedule = $schedule_result->fetch_assoc();
+
+// Determine voting status
+$current_time = date('Y-m-d H:i:s');
+$voting_status = "";
+$countdown_date = "";
+$is_voting_active = false;
+$heading_text = "";
+$status_class = "";
+
+if ($voting_schedule) {
+    $start_time = $voting_schedule['start_time'];
+    $end_time = $voting_schedule['end_time'];
+    
+    if ($current_time < $start_time) {
+        // Voting not started yet
+        $voting_status = "Voting will start soon";
+        $countdown_date = $start_time;
+        $heading_text = "Voting Starts In:";
+        $status_class = "upcoming";
+    } elseif ($current_time >= $start_time && $current_time <= $end_time) {
+        // Voting is active
+        $voting_status = "Voting is OPEN";
+        $countdown_date = $end_time;
+        $heading_text = "Voting Ends In:";
+        $is_voting_active = true;
+        $status_class = "active";
+    } else {
+        // Voting ended
+        $voting_status = "Voting has ENDED";
+        $countdown_date = null;
+        $heading_text = "Voting Closed On:";
+        $status_class = "ended";
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -45,6 +87,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
         .college-card:hover {
             transform: translateY(-8px); 
             box-shadow: 0 15px 30px rgba(12, 59, 93, 0.25); 
+        }
+        
+        .college-card-disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .college-card-disabled:hover {
+            transform: none;
+            box-shadow: none;
         }
         
         .card-selected {
@@ -119,8 +171,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
             max-height: 90%;
             object-fit: contain;
         }
-        
-
         
         .isatu-header {
             background-color: #fff;
@@ -207,6 +257,93 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
             font-size: 1.8rem; 
         }
         
+        /* Countdown timer styles */
+        .voting-status-banner {
+            background-color: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 6px solid var(--isatu-primary);
+        }
+        
+        .voting-status-banner.active {
+            border-left: 6px solid #198754;
+        }
+        
+        .voting-status-banner.upcoming {
+            border-left: 6px solid #ffc107;
+        }
+        
+        .voting-status-banner.ended {
+            border-left: 6px solid #dc3545;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+        
+        .status-badge.active {
+            background-color: rgba(25, 135, 84, 0.1);
+            color: #198754;
+        }
+        
+        .status-badge.upcoming {
+            background-color: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+        }
+        
+        .status-badge.ended {
+            background-color: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+        }
+        
+        .countdown-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+            gap: 15px;
+        }
+        
+        .countdown-box {
+            background-color: var(--isatu-primary);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            min-width: 80px;
+            box-shadow: 0 4px 10px rgba(12, 59, 93, 0.2);
+        }
+        
+        .countdown-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .countdown-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+        
+        /* Timezone indicator */
+        .timezone-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: rgba(12, 59, 93, 0.1);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+            color: var(--isatu-primary);
+        }
+        
         @media (min-width: 992px) {
             .college-card {
                 height: 320px;
@@ -268,6 +405,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
                 text-align: center;
                 width: 100%;
             }
+            
+            .countdown-container {
+                flex-wrap: wrap;
+            }
+            
+            .countdown-box {
+                min-width: 70px;
+                padding: 10px;
+            }
+            
+            .countdown-value {
+                font-size: 1.7rem;
+            }
         }
         
         /* Footer styles */
@@ -293,6 +443,55 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
             </div>
         </div>
         
+        <!-- Voting Status Banner with Countdown Timer -->
+        <?php if (isset($voting_schedule)): ?>
+        <div class="voting-status-banner <?php echo $status_class; ?>">
+            <div class="status-badge <?php echo $status_class; ?>">
+                <?php echo $voting_status; ?>
+            </div>
+            <h4><?php echo $heading_text; ?></h4>
+            
+            <?php if ($countdown_date): ?>
+            <div class="countdown-container" id="countdown">
+                <div class="countdown-box">
+                    <div class="countdown-value" id="days">00</div>
+                    <div class="countdown-label">Days</div>
+                </div>
+                <div class="countdown-box">
+                    <div class="countdown-value" id="hours">00</div>
+                    <div class="countdown-label">Hours</div>
+                </div>
+                <div class="countdown-box">
+                    <div class="countdown-value" id="minutes">00</div>
+                    <div class="countdown-label">Minutes</div>
+                </div>
+                <div class="countdown-box">
+                    <div class="countdown-value" id="seconds">00</div>
+                    <div class="countdown-label">Seconds</div>
+                </div>
+            </div>
+            <div class="mt-3 text-muted">
+                <?php if ($is_voting_active): ?>
+                Please select your college to cast your vote before the deadline.
+                <?php else: ?>
+                Voting will be available once the election period begins.
+                <?php endif; ?>
+            </div>
+            <?php else: ?>
+            <div class="text-muted mt-3">
+                <p>Voting period ended on <?php echo date('F d, Y - h:i A', strtotime($voting_schedule['end_time'])); ?></p>
+                <p>Please contact the administration for any inquiries.</p>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php else: ?>
+        <div class="voting-status-banner">
+            <div class="status-badge">No Active Election</div>
+            <h4>No Voting Schedule Available</h4>
+            <p class="text-muted mt-3">There is currently no active election schedule. Please check back later or contact the administration for more information.</p>
+        </div>
+        <?php endif; ?>
+        
         <form method="POST" action="" id="collegeForm">
             <input type="hidden" name="college" id="selectedCollege" value="">
             
@@ -300,8 +499,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
                 <h4 class="section-title">Student Republic</h4>
                 <div class="row justify-content-center">
                     <div class="col-lg-8 col-md-10">
-                        <div class="college-card border bg-white shadow-sm p-4" 
-                            onclick="selectCollege('sr')">
+                        <div class="college-card border bg-white shadow-sm p-4 <?php echo (!$is_voting_active) ? 'college-card-disabled' : ''; ?>" 
+                            onclick="<?php echo ($is_voting_active) ? 'selectCollege(\'sr\')' : ''; ?>">
                             <div class="college-logo-container">
                                 <img src="assets/logo/STUDENT REPUBLIC LOGO.png" alt="Student Republic Logo" class="img-logo sr-img-logo">
                             </div>
@@ -318,8 +517,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
                 <div class="row">
                     <!-- College of Art and Sciences -->
                     <div class="col-md-6 col-lg-3">
-                        <div class="college-card border bg-white shadow-sm p-3" 
-                            onclick="selectCollege('cas')">
+                        <div class="college-card border bg-white shadow-sm p-3 <?php echo (!$is_voting_active) ? 'college-card-disabled' : ''; ?>" 
+                            onclick="<?php echo ($is_voting_active) ? 'selectCollege(\'cas\')' : ''; ?>">
                             <div class="college-logo-container college-img-container">
                                 <img src="assets/logo/CASSC.jpg" alt="College of Arts and Sciences Logo" class="img-logo">
                             </div>
@@ -330,8 +529,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
                     
                     <!-- College of Engineering and Architecture -->
                     <div class="col-md-6 col-lg-3">
-                        <div class="college-card border bg-white shadow-sm p-3" 
-                            onclick="selectCollege('cea')">
+                        <div class="college-card border bg-white shadow-sm p-3 <?php echo (!$is_voting_active) ? 'college-card-disabled' : ''; ?>" 
+                            onclick="<?php echo ($is_voting_active) ? 'selectCollege(\'cea\')' : ''; ?>">
                             <div class="college-logo-container college-img-container">
                                 <img src="assets/logo/CEASC.jpg" alt="College of Engineering and Architecture Logo" class="img-logo">
                             </div>
@@ -342,25 +541,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
                     
                     <!-- College of Education -->
                     <div class="col-md-6 col-lg-3">
-                        <div class="college-card border bg-white shadow-sm p-3" 
-                            onclick="selectCollege('coe')">
+                        <div class="college-card border bg-white shadow-sm p-3 <?php echo (!$is_voting_active) ? 'college-card-disabled' : ''; ?>" 
+                            onclick="<?php echo ($is_voting_active) ? 'selectCollege(\'coe\')' : ''; ?>">
                             <div class="college-logo-container college-img-container">
                                 <img src="assets/logo/COESC.jpg" alt="College of Education Logo" class="img-logo">
                             </div>
                             <h5>College of Education</h5>
-                            <p class="text-muted mb-0 fs-6">COESC</p>
+                            <p class="text-muted mb-0 fs-6">ED GUILD</p>
                         </div>
                     </div>
                     
                     <!-- College of Industrial Technology -->
                     <div class="col-md-6 col-lg-3">
-                        <div class="college-card border bg-white shadow-sm p-3" 
-                            onclick="selectCollege('cit')">
+                        <div class="college-card border bg-white shadow-sm p-3 <?php echo (!$is_voting_active) ? 'college-card-disabled' : ''; ?>" 
+                            onclick="<?php echo ($is_voting_active) ? 'selectCollege(\'cit\')' : ''; ?>">
                             <div class="college-logo-container college-img-container">
                                 <img src="assets/logo/CITSC.png" alt="College of Industrial Technology Logo" class="img-logo">
                             </div>
                             <h5>College of Industrial Technology</h5>
-                            <p class="text-muted mb-0 fs-6">CITSC</p>
+                            <p class="text-muted mb-0 fs-6">OIT</p>
                         </div>
                     </div>
                 </div>
@@ -370,6 +569,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
                 <button type="submit" class="btn btn-vote btn-lg" id="submitBtn" disabled>
                     <i class="bi bi-check2-circle me-2"></i> Cast Your Vote
                 </button>
+                <?php if (!$is_voting_active && $voting_schedule): ?>
+                <div class="text-muted mt-3">
+                    <i class="bi bi-info-circle"></i> 
+                    <?php if ($current_time < $start_time): ?>
+                        Voting is not yet available. Please wait until the voting period begins.
+                    <?php else: ?>
+                        Voting period has ended. Thank you for your participation.
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
             </div>
         </form>
         
@@ -379,7 +588,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
                     <i class="bi bi-building me-2"></i> © 2025 Iloilo Science and Technology University
                 </div>
                 <div>
-                    </i> This website was developed by Larry Denver Biaco
+                    </i>Developed by Larry Denver Biaco
                 </div>
             </div>
         </div>
@@ -389,7 +598,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        
+        // College selection function
         function selectCollege(collegeCode) {
             // Remove selection from all cards
             document.querySelectorAll('.college-card').forEach(card => {
@@ -403,13 +612,66 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['college'])) {
             document.getElementById('selectedCollege').value = collegeCode;
             
             // Enable the submit button
+            <?php if ($is_voting_active): ?>
             document.getElementById('submitBtn').disabled = false;
+            <?php endif; ?>
             
             // Scroll to the button on mobile for better UX
             if (window.innerWidth < 768) {
                 document.getElementById('submitBtn').scrollIntoView({behavior: 'smooth'});
             }
         }
+        
+        // Countdown timer function
+        <?php if ($countdown_date): ?>
+        const countdownDate = new Date("<?php echo $countdown_date; ?>").getTime();
+        
+        // Update the countdown every 1 second
+        const countdown = setInterval(function() {
+            // Get current date and time
+            const now = new Date().getTime();
+            
+            // Find the time remaining between now and the countdown date
+            const distance = countdownDate - now;
+            
+            // Time calculations for days, hours, minutes and seconds
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            
+            // Display the result in the corresponding elements
+            document.getElementById("days").innerHTML = days.toString().padStart(2, '0');
+            document.getElementById("hours").innerHTML = hours.toString().padStart(2, '0');
+            document.getElementById("minutes").innerHTML = minutes.toString().padStart(2, '0');
+            document.getElementById("seconds").innerHTML = seconds.toString().padStart(2, '0');
+            
+            // If the countdown is finished, disable the voting functionality and reload
+            if (distance < 0) {
+                clearInterval(countdown);
+                
+                // Disable all college cards
+                document.querySelectorAll('.college-card').forEach(card => {
+                    card.classList.add('college-card-disabled');
+                    card.onclick = null;
+                });
+                
+                // Disable the submit button
+                document.getElementById('submitBtn').disabled = true;
+                
+                // Show message
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'alert alert-warning mt-3';
+                messageDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i> Voting period has ended. The page will refresh momentarily.';
+                document.getElementById('submitBtn').insertAdjacentElement('afterend', messageDiv);
+                
+                // Reload the page after a short delay
+                setTimeout(function() {
+                    location.reload();
+                }, 3000);
+            }
+        }, 1000);
+        <?php endif; ?>
     </script>
 </body>
 </html>

@@ -774,10 +774,6 @@ if ($result->num_rows > 0) {
                 <i class="bi bi-bar-chart"></i>
                 <span>Election Results</span>
             </a>
-            <a href="../election_settings.php" class="nav-link">
-                <i class="bi bi-gear"></i>
-                <span>Election Settings</span>
-            </a>
             <a href="../register_student.php?logout=1" class="nav-link text-danger">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>Logout</span>
@@ -925,9 +921,9 @@ if ($result->num_rows > 0) {
                                     </td>
                                     <td>
                                         <div class="d-flex gap-2">
-                                            <a href="edit_student.php?id=<?php echo $student['id']; ?>" class="btn btn-sm btn-outline-primary">
+                                            <!--<a href="edit_student.php?id=<?php echo $student['id']; ?>" class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-pencil"></i> Edit
-                                            </a>
+                                            </a>-->
                                             <a href="register_student.php?college=<?php echo $selected_college; ?>&delete_id=<?php echo $student['id']; ?>" 
                                             class="btn btn-sm btn-outline-danger btn-delete">
                                                 <i class="bi bi-trash"></i> Delete

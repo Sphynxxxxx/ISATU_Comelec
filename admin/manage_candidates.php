@@ -605,10 +605,6 @@ $current_datetime = date('F d, Y - h:i A');
                 <i class="bi bi-bar-chart"></i>
                 <span>Election Results</span>
             </a>
-            <a href="election_settings.php" class="nav-link">
-                <i class="bi bi-gear"></i>
-                <span>Election Settings</span>
-            </a>
             <a href="manage_candidates.php?logout=1" class="nav-link text-danger">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>Logout</span>
@@ -625,14 +621,14 @@ $current_datetime = date('F d, Y - h:i A');
         
         <!-- Quick Actions -->
         <div class="quick-actions">
-            <a href="view_all_candidates.php" class="action-btn">
+            <a href="control/view_all_candidates.php" class="action-btn">
                 <i class="bi bi-list-check action-icon"></i>
                 <span class="action-text">View All Candidates</span>
             </a>
-            <a href="candidate_statistics.php" class="action-btn">
+            <!--<a href="candidate_statistics.php" class="action-btn">
                 <i class="bi bi-graph-up action-icon"></i>
                 <span class="action-text">Candidate Statistics</span>
-            </a>
+            </a>-->
         </div>
         
         <!-- Register Candidate by College Cards -->

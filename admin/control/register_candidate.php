@@ -51,9 +51,53 @@ $positions = [
         ['name' => 'BSCD Representative', 'order' => 17],
         ['name' => 'BS Bio Representative', 'order' => 18]
     ],
-    'cea' => [], // Will be blank for now
-    'coe' => [], // Will be blank for now
-    'cit' => []  // Will be blank for now
+    'cea' => [
+        ['name' => 'Governor', 'order' => 1],
+        ['name' => 'Vice Governor', 'order' => 2],
+        ['name' => 'Secretary', 'order' => 3],
+        ['name' => 'Treasurer', 'order' => 4],
+        ['name' => 'Auditor', 'order' => 5],
+        ['name' => 'Business Manager', 'order' => 6],
+        ['name' => 'Board of Director', 'order' => 7],
+        ['name' => 'Board of Director', 'order' => 8],
+        ['name' => 'Board of Director', 'order' => 9],
+        ['name' => 'Board of Director', 'order' => 10],
+        ['name' => 'Board of Director', 'order' => 11],
+        ['name' => 'Board of Director', 'order' => 12],
+        ['name' => 'Board of Director', 'order' => 13],
+        ['name' => 'Board of Director', 'order' => 14],
+        ['name' => 'Board of Director', 'order' => 15],
+        ['name' => 'Board of Director', 'order' => 16],
+
+    ], 
+    'coe' => [
+        ['name' => 'Governor', 'order' => 1],
+        ['name' => 'Vice Governor', 'order' => 2],
+        ['name' => 'Secretary', 'order' => 3],
+        ['name' => 'Assistant Secretary', 'order' => 4],
+        ['name' => 'Assistant Treasurer', 'order' => 5],
+        ['name' => 'Auditor', 'order' => 6],
+        ['name' => 'Assitant Auditor', 'order' => 7],
+        ['name' => 'Business Manager', 'order' => 8],
+        ['name' => 'Assitant Business Manager', 'order' => 9],
+        ['name' => 'Public Information Officer', 'order' => 10],
+        ['name' => 'Public Information Officer', 'order' => 11],
+        ['name' => 'Sentinel', 'order' => 11],
+        ['name' => 'Sentinel', 'order' => 12],
+                  
+    ],
+    'cit' => [
+        ['name' => 'Governor', 'order' => 1],
+        ['name' => 'Vice Governor', 'order' => 2],
+        ['name' => 'Secretary', 'order' => 3],
+        ['name' => 'Business Manager', 'order' => 4],
+        ['name' => 'Treasurer', 'order' => 5],
+        ['name' => 'Auditor', 'order' => 6],
+        ['name' => 'Peace Courtesy Officer', 'order' => 7],
+        ['name' => 'Peace Courtesy Officer', 'order' => 8],
+        ['name' => 'Public Information Officer', 'order' => 9],
+        ['name' => 'Public Information Officer', 'order' => 10],
+    ]  
 ];
 
 // Extract position names for the dropdown
@@ -769,10 +813,6 @@ $current_datetime = date('F d, Y - h:i A');
                 <i class="bi bi-bar-chart"></i>
                 <span>Election Results</span>
             </a>
-            <a href="../election_settings.php" class="nav-link">
-                <i class="bi bi-gear"></i>
-                <span>Election Settings</span>
-            </a>
             <a href="../register_candidate.php?logout=1" class="nav-link text-danger">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>Logout</span>
@@ -925,9 +965,9 @@ $current_datetime = date('F d, Y - h:i A');
                                         </div>
                                         
                                         <div class="candidate-actions">
-                                            <a href="edit_candidate.php?id=<?php echo $candidate['id']; ?>" class="btn btn-sm btn-outline-primary">
+                                            <!--<a href="edit_candidate.php?id=<?php echo $candidate['id']; ?>" class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-pencil"></i> Edit
-                                            </a>
+                                            </a>-->
                                             <button type="button" class="btn btn-sm btn-outline-danger"
                                                     onclick="confirmDelete(<?php echo $candidate['id']; ?>, '<?php echo htmlspecialchars(addslashes($candidate['name'])); ?>')">
                                                 <i class="bi bi-trash"></i> Delete

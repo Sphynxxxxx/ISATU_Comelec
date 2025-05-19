@@ -659,7 +659,7 @@ function isSenatorsPosition($position) {
                     <i class="bi bi-building me-2"></i> © 2025 Iloilo Science and Technology University
                 </div>
                 <div>
-                    </i> This website was developed by Larry Denver Biaco
+                    </i>Developed by Larry Denver Biaco
                 </div>
             </div>
         </div>
