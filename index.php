@@ -429,17 +429,44 @@ if ($voting_schedule) {
             border-radius: 30px;
             display: inline-block;
         }
+
+        .logo-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem; 
+            padding: 1rem;
+        }
+
+        .isatu-logo {
+            max-width: 100%;
+            height: auto;
+            width: 150px;
+        }
+
+        @media (max-width: 576px) {
+            .isatu-logo {
+                width: 100px;
+            }
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
         <div class="isatu-header d-flex align-items-center justify-content-between flex-wrap">
             <div class="d-flex align-items-center flex-wrap">
-                <img src="assets/logo/ISAT-U-logo-2.png" alt="ISATU Logo" class="isatu-logo d-block">
+                <!-- Container for images -->
+                <div class="logo-container">
+                    <img src="assets/logo/ISAT-U-logo-2.png" alt="ISATU Logo" class="isatu-logo d-block">
+                    <img src="assets/logo/isatu_comelec.png" alt="COMELEC Logo" class="isatu-logo d-block">
+                </div>
+
                 <div>
-                    <h1 class="mb-0">Iloilo Science and Technology University Voting System</h1>
+                    <h1 class="mb-0">Student Republic Commission on Elections</h1>
                     <p class="text-muted mb-0 fs-5">Iloilo Science and Technology University</p>
                 </div>
+                
             </div>
         </div>
         
