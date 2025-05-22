@@ -75,15 +75,16 @@ $positions = [
         ['name' => 'Vice Governor', 'order' => 2],
         ['name' => 'Secretary', 'order' => 3],
         ['name' => 'Assistant Secretary', 'order' => 4],
-        ['name' => 'Assistant Treasurer', 'order' => 5],
-        ['name' => 'Auditor', 'order' => 6],
-        ['name' => 'Assitant Auditor', 'order' => 7],
-        ['name' => 'Business Manager', 'order' => 8],
-        ['name' => 'Assitant Business Manager', 'order' => 9],
-        ['name' => 'Public Information Officer', 'order' => 10],
+        ['name' => 'Treasurer', 'order' => 5],
+        ['name' => 'Assistant Treasurer', 'order' => 6],
+        ['name' => 'Auditor', 'order' => 7],
+        ['name' => 'Assitant Auditor', 'order' => 8],
+        ['name' => 'Business Manager', 'order' => 9],
+        ['name' => 'Assitant Business Manager', 'order' => 10],
         ['name' => 'Public Information Officer', 'order' => 11],
-        ['name' => 'Sentinel', 'order' => 11],
-        ['name' => 'Sentinel', 'order' => 12],
+        ['name' => 'Public Information Officer', 'order' => 12],
+        ['name' => 'Sentinel', 'order' => 13],
+        ['name' => 'Sentinel', 'order' => 14],
                   
     ],
     'cit' => [
@@ -93,10 +94,11 @@ $positions = [
         ['name' => 'Business Manager', 'order' => 4],
         ['name' => 'Treasurer', 'order' => 5],
         ['name' => 'Auditor', 'order' => 6],
-        ['name' => 'Peace Courtesy Officer', 'order' => 7],
+        ['name' => 'Assistant Auditor', 'order' => 7],
         ['name' => 'Peace Courtesy Officer', 'order' => 8],
-        ['name' => 'Public Information Officer', 'order' => 9],
+        ['name' => 'Peace Courtesy Officer', 'order' => 9],
         ['name' => 'Public Information Officer', 'order' => 10],
+        ['name' => 'Public Information Officer', 'order' => 11],
     ]  
 ];
 

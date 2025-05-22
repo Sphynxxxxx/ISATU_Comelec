@@ -2,8 +2,8 @@
 session_start();
 
 // Static admin credentials
-$admin_username = "admin";
-$admin_password = "isatu2025";
+$admin_username = "SRCOMELEC";
+$admin_password = "Elections2025";
 
 // Check if admin is already logged in
 if(isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
