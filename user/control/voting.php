@@ -44,7 +44,12 @@ $position_hierarchy = [
     // SR positions
     'president' => 1,
     'vice president' => 2,
-    'senator' => 3
+    'senator' => 3,
+    // Multi-vote positions
+    'board of director' => 20,
+    'public information officer' => 21,
+    'sentinel' => 22,
+    'peace courtesy officer' => 23
     // Add other positions as needed
 ];
 
@@ -66,14 +71,39 @@ $stmt->execute();
 $position_result = $stmt->get_result();
 
 while ($position = $position_result->fetch_assoc()) {
-    // Set max_votes to 12 for the Senators position
-    if (strtolower($position['name']) === 'senator' || strtolower($position['name']) === 'senators') {
+    // Set max_votes for multi-vote positions
+    $position_name_lower = strtolower($position['name']);
+    
+    if ($position_name_lower === 'senator' || $position_name_lower === 'senators') {
         $position['max_votes'] = 12;
+    } elseif (in_array($position_name_lower, [
+        'board of director', 
+        'board of directors',
+        'public information officer', 
+        'sentinel', 
+        'peace courtesy officer'
+    ])) {
+        // Set appropriate max votes for each position (you can adjust these numbers)
+        switch ($position_name_lower) {
+            case 'board of director':
+            case 'board of directors':
+                $position['max_votes'] = 7; // Adjust as needed
+                break;
+            case 'public information officer':
+                $position['max_votes'] = 3; // Adjust as needed
+                break;
+            case 'sentinel':
+                $position['max_votes'] = 5; // Adjust as needed
+                break;
+            case 'peace courtesy officer':
+                $position['max_votes'] = 4; // Adjust as needed
+                break;
+        }
     }
+    
     $positions[$position['id']] = $position;
     
     // Add hierarchical value for custom sorting
-    $position_name_lower = strtolower($position['name']);
     $positions[$position['id']]['hierarchy_value'] = isset($position_hierarchy[$position_name_lower]) 
         ? $position_hierarchy[$position_name_lower] 
         : 999; // Default to a high number for unknown positions
@@ -174,7 +204,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_vote'])) {
     }
 }
 
-// Function to check if position is for senators
+// Function to check if position allows multiple votes
+function isMultiVotePosition($position) {
+    $position_name_lower = strtolower($position['name']);
+    return in_array($position_name_lower, [
+        'senator', 
+        'senators',
+        'board of director',
+        'board of directors', 
+        'public information officer', 
+        'sentinel', 
+        'peace courtesy officer'
+    ]);
+}
+
+// Function to check if position is for senators specifically
 function isSenatorsPosition($position) {
     return strtolower($position['name']) === 'senator' || strtolower($position['name']) === 'senators';
 }
@@ -400,28 +444,34 @@ function isSenatorsPosition($position) {
             border-color: var(--isatu-primary);
         }
         
-        /* Senator selection styles */
-        .senator-selection-summary {
+        /* Multi-vote selection summary styles */
+        .multi-vote-selection-summary {
             background-color: rgba(242, 192, 29, 0.1);
-            padding: 10px 15px;
+            padding: 15px;
             border-radius: 10px;
             margin-top: 20px;
             border: 1px solid var(--isatu-secondary);
         }
         
-        .senator-chip {
+        .selection-chip {
             display: inline-block;
             background-color: var(--isatu-primary);
             color: white;
-            padding: 3px 10px;
+            padding: 5px 12px;
             border-radius: 20px;
             margin: 2px;
             font-size: 0.9rem;
         }
         
-        .senator-chip .remove-senator {
+        .selection-chip .remove-selection {
             cursor: pointer;
-            margin-left: 5px;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+        
+        .selection-count {
+            font-weight: bold;
+            color: var(--isatu-primary);
         }
         
         @media (max-width: 767px) {
@@ -525,7 +575,7 @@ function isSenatorsPosition($position) {
             
             <div class="alert alert-voting-info" role="alert">
                 <h5 class="alert-heading"><i class="bi bi-info-circle-fill me-2"></i> Voting Instructions</h5>
-                <p>Select your preferred candidate(s) for each position. For Senators, you can select up to 12 candidates.</p>
+                <p>Select your preferred candidate(s) for each position. Some positions allow multiple selections.</p>
                 <p class="mb-0">Once you submit your vote, it cannot be changed.</p>
             </div>
             
@@ -541,16 +591,12 @@ function isSenatorsPosition($position) {
                         <div class="position-section">
                             <h3 class="position-title">
                                 <?php echo $position['name']; ?>
-                                <?php if ($position['max_votes'] > 1 && !isSenatorsPosition($position)): ?>
-                                    <span class="badge bg-secondary ms-2">Select up to <?php echo $position['max_votes']; ?></span>
-                                <?php endif; ?>
                             </h3>
                             
                             <?php if (isset($candidates[$position['id']]) && !empty($candidates[$position['id']])): ?>
-                                <?php if (isSenatorsPosition($position)): ?>
-                                    <!-- Senator Position - Show all candidates naturally with selection limit of 12 -->
-                                    <div class="senator-candidates">
-                                        
+                                <?php if (isMultiVotePosition($position)): ?>
+                                    <!-- Multi-vote Position - Show all candidates with checkbox selection -->
+                                    <div class="multi-vote-candidates" data-position-id="<?php echo $position['id']; ?>" data-max-votes="<?php echo $position['max_votes']; ?>">
                                         <div class="row">
                                             <?php foreach ($candidates[$position['id']] as $candidate): ?>
                                                 <div class="col-md-6 col-lg-4 mb-4">
@@ -577,23 +623,36 @@ function isSenatorsPosition($position) {
                                                         <?php endif; ?>
                                                         
                                                         <div class="form-check mt-auto text-center">
-                                                            <input class="form-check-input senator-checkbox position-<?php echo $position['id']; ?>" 
+                                                            <input class="form-check-input multi-vote-checkbox position-<?php echo $position['id']; ?>" 
                                                                 type="checkbox" 
                                                                 name="vote_<?php echo $position['id']; ?>[]" 
                                                                 value="<?php echo $candidate['id']; ?>" 
                                                                 id="candidate_<?php echo $candidate['id']; ?>"
-                                                                data-name="<?php echo $candidate['name']; ?>">
+                                                                data-name="<?php echo $candidate['name']; ?>"
+                                                                data-position-name="<?php echo $position['name']; ?>">
                                                             <label class="form-check-label" for="candidate_<?php echo $candidate['id']; ?>">
-                                                                Vote for this Senator
+                                                                Vote for this candidate
                                                             </label>
                                                         </div>
                                                     </div>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>
+                                        
+                                        <!-- Selection Summary -->
+                                        <div class="multi-vote-selection-summary" id="summary-<?php echo $position['id']; ?>" style="display: none;">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span><strong>Selected <?php echo $position['name']; ?>:</strong></span>
+                                                <span class="selection-count" id="count-<?php echo $position['id']; ?>">0 / <?php echo $position['max_votes']; ?></span>
+                                            </div>
+                                            <div id="selected-candidates-<?php echo $position['id']; ?>"></div>
+                                            <div id="no-selection-message-<?php echo $position['id']; ?>" class="text-muted" style="display: none;">
+                                                No candidates selected yet.
+                                            </div>
+                                        </div>
                                     </div>
                                 <?php else: ?>
-                                    <!-- Regular position display - Show all candidates -->
+                                    <!-- Single vote position display -->
                                     <div class="row">
                                         <?php foreach ($candidates[$position['id']] as $candidate): ?>
                                             <div class="col-md-6 col-lg-4 mb-4">
@@ -620,11 +679,7 @@ function isSenatorsPosition($position) {
                                                     <?php endif; ?>
                                                     
                                                     <div class="form-check mt-auto text-center">
-                                                        <?php if ($position['max_votes'] > 1): ?>
-                                                            <input class="form-check-input position-<?php echo $position['id']; ?>" type="checkbox" name="vote_<?php echo $position['id']; ?>[]" value="<?php echo $candidate['id']; ?>" id="candidate_<?php echo $candidate['id']; ?>">
-                                                        <?php else: ?>
-                                                            <input class="form-check-input position-<?php echo $position['id']; ?>" type="radio" name="vote_<?php echo $position['id']; ?>" value="<?php echo $candidate['id']; ?>" id="candidate_<?php echo $candidate['id']; ?>">
-                                                        <?php endif; ?>
+                                                        <input class="form-check-input position-<?php echo $position['id']; ?>" type="radio" name="vote_<?php echo $position['id']; ?>" value="<?php echo $candidate['id']; ?>" id="candidate_<?php echo $candidate['id']; ?>">
                                                         <label class="form-check-label" for="candidate_<?php echo $candidate['id']; ?>">
                                                             Vote
                                                         </label>
@@ -659,7 +714,7 @@ function isSenatorsPosition($position) {
                     <i class="bi bi-building me-2"></i> © 2025 Iloilo Science and Technology University
                 </div>
                 <div>
-                    </i>Developed by Larry Denver Biaco
+                    Developed by Larry Denver Biaco
                 </div>
             </div>
         </div>
@@ -670,185 +725,170 @@ function isSenatorsPosition($position) {
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Regular candidate card click handling
-            const candidateCards = document.querySelectorAll('.candidate-card:not(.senator-candidates .candidate-card)');
-            candidateCards.forEach(card => {
+            // Regular candidate card click handling (for single vote positions)
+            const singleVoteCandidateCards = document.querySelectorAll('.candidate-card:not(.multi-vote-candidates .candidate-card)');
+            singleVoteCandidateCards.forEach(card => {
                 card.addEventListener('click', function() {
-                    const input = this.querySelector('input[type="radio"], input[type="checkbox"]');
+                    const input = this.querySelector('input[type="radio"]');
                     if (input) {
-                        if (input.type === 'checkbox') {
-                            input.checked = !input.checked;
-                            this.classList.toggle('selected', input.checked);
-                            
-                            // Check for max votes
-                            const positionClass = input.className.split(' ')
-                                .find(cls => cls.startsWith('position-'));
-                            if (positionClass) {
-                                const positionId = positionClass.split('-')[1];
-                                const maxVotes = parseInt(this.closest('.position-section')
-                                    .querySelector('.badge')?.textContent.match(/\d+/) || 1);
-                                const selectedCount = document.querySelectorAll(`.${positionClass}:checked`).length;
-                                
-                                if (selectedCount > maxVotes && input.checked) {
-                                    input.checked = false;
-                                    this.classList.remove('selected');
-                                    alert(`You can only select up to ${maxVotes} candidates for this position.`);
-                                }
-                            }
-                        } else {
-                            input.checked = true;
-                            
-                            // Remove selected class from other cards in the same position
-                            const positionClass = input.className.split(' ')
-                                .find(cls => cls.startsWith('position-'));
-                            if (positionClass) {
-                                document.querySelectorAll(`.${positionClass}`).forEach(otherInput => {
-                                    otherInput.closest('.candidate-card').classList.remove('selected');
-                                });
-                            }
-                            
-                            // Add selected class to this card
-                            this.classList.add('selected');
+                        input.checked = true;
+                        
+                        // Remove selected class from other cards in the same position
+                        const positionClass = input.className.split(' ')
+                            .find(cls => cls.startsWith('position-'));
+                        if (positionClass) {
+                            document.querySelectorAll(`.${positionClass}`).forEach(otherInput => {
+                                otherInput.closest('.candidate-card').classList.remove('selected');
+                            });
                         }
+                        
+                        // Add selected class to this card
+                        this.classList.add('selected');
                     }
                 });
             });
             
-            // Initialize selected state for checked inputs
-            const checkedInputs = document.querySelectorAll('input[type="checkbox"]:checked:not(.senator-checkbox), input[type="radio"]:checked');
-            checkedInputs.forEach(input => {
+            // Initialize selected state for checked radio inputs
+            const checkedRadioInputs = document.querySelectorAll('input[type="radio"]:checked');
+            checkedRadioInputs.forEach(input => {
                 input.closest('.candidate-card')?.classList.add('selected');
             });
             
-            // Senator selection handling
-            const senatorCheckboxes = document.querySelectorAll('.senator-checkbox');
-            const selectedSenatorsContainer = document.getElementById('selected-senators-container');
-            const selectedSenatorCount = document.getElementById('selected-senator-count');
-            const noSenatorsMessage = document.getElementById('no-senators-message');
+            // Multi-vote position handling
+            const multiVoteContainers = document.querySelectorAll('.multi-vote-candidates');
             
-            // Initialize senator selection tracking
-            if (senatorCheckboxes.length > 0) {
-                const MAX_SENATORS = 12;
-                let selectedSenators = [];
+            multiVoteContainers.forEach(container => {
+                const positionId = container.getAttribute('data-position-id');
+                const maxVotes = parseInt(container.getAttribute('data-max-votes'));
+                const checkboxes = container.querySelectorAll('.multi-vote-checkbox');
+                const summary = document.getElementById(`summary-${positionId}`);
+                const countDisplay = document.getElementById(`count-${positionId}`);
+                const selectedContainer = document.getElementById(`selected-candidates-${positionId}`);
+                const noSelectionMessage = document.getElementById(`no-selection-message-${positionId}`);
                 
-                // Update the selected senators display
-                const updateSelectedSenatorsDisplay = () => {
-                    selectedSenatorCount.textContent = selectedSenators.length;
+                let selectedCandidates = [];
+                
+                // Update the selected candidates display
+                const updateSelectionDisplay = () => {
+                    countDisplay.textContent = `${selectedCandidates.length} / ${maxVotes}`;
                     
-                    if (selectedSenators.length === 0) {
-                        noSenatorsMessage.style.display = 'block';
-                        selectedSenatorsContainer.querySelectorAll('.senator-chip').forEach(chip => chip.remove());
+                    if (selectedCandidates.length === 0) {
+                        summary.style.display = 'none';
+                        noSelectionMessage.style.display = 'block';
+                        selectedContainer.innerHTML = '';
                     } else {
-                        noSenatorsMessage.style.display = 'none';
+                        summary.style.display = 'block';
+                        noSelectionMessage.style.display = 'none';
                         
                         // Clear existing chips
-                        selectedSenatorsContainer.querySelectorAll('.senator-chip').forEach(chip => chip.remove());
+                        selectedContainer.innerHTML = '';
                         
                         // Create new chips
-                        selectedSenators.forEach(senator => {
+                        selectedCandidates.forEach(candidate => {
                             const chip = document.createElement('span');
-                            chip.className = 'senator-chip';
-                            chip.innerHTML = `${senator.name} <span class="remove-senator" data-id="${senator.id}">✕</span>`;
-                            selectedSenatorsContainer.appendChild(chip);
+                            chip.className = 'selection-chip';
+                            chip.innerHTML = `${candidate.name} <span class="remove-selection" data-id="${candidate.id}">✕</span>`;
+                            selectedContainer.appendChild(chip);
                         });
                         
                         // Add event listeners to remove buttons
-                        selectedSenatorsContainer.querySelectorAll('.remove-senator').forEach(removeBtn => {
+                        selectedContainer.querySelectorAll('.remove-selection').forEach(removeBtn => {
                             removeBtn.addEventListener('click', (e) => {
-                                const senatorId = e.target.getAttribute('data-id');
-                                const checkbox = document.getElementById(senatorId);
+                                e.stopPropagation();
+                                const candidateId = e.target.getAttribute('data-id');
+                                const checkbox = document.getElementById(candidateId);
                                 if (checkbox) {
                                     checkbox.checked = false;
                                     checkbox.closest('.candidate-card')?.classList.remove('selected');
                                     
-                                    // Remove from selected senators array
-                                    selectedSenators = selectedSenators.filter(senator => senator.id !== senatorId);
-                                    updateSelectedSenatorsDisplay();
+                                    // Remove from selected candidates array
+                                    selectedCandidates = selectedCandidates.filter(candidate => candidate.id !== candidateId);
+                                    updateSelectionDisplay();
                                 }
                             });
                         });
                     }
                 };
                 
-                // Handle checkbox changes
-                senatorCheckboxes.forEach(checkbox => {
-                    // Click on senator card should toggle checkbox
-                    checkbox.closest('.candidate-card').addEventListener('click', function(e) {
+                // Handle checkbox changes and card clicks
+                checkboxes.forEach(checkbox => {
+                    const candidateCard = checkbox.closest('.candidate-card');
+                    
+                    // Click on candidate card should toggle checkbox
+                    candidateCard.addEventListener('click', function(e) {
                         // Skip if the click is on the checkbox itself
-                        if (e.target !== checkbox) {
+                        if (e.target !== checkbox && e.target.tagName !== 'LABEL') {
                             const isChecked = !checkbox.checked;
                             
                             // Check if we're trying to add and already at max
-                            if (isChecked && selectedSenators.length >= MAX_SENATORS) {
-                                alert(`You can only select up to ${MAX_SENATORS} senators.`);
+                            if (isChecked && selectedCandidates.length >= maxVotes) {
+                                const positionName = checkbox.getAttribute('data-position-name');
+                                alert(`You can only select up to ${maxVotes} candidates for ${positionName}.`);
                                 return;
                             }
                             
                             checkbox.checked = isChecked;
                             this.classList.toggle('selected', isChecked);
                             
-                            const senatorId = checkbox.id;
-                            const senatorName = checkbox.getAttribute('data-name');
+                            const candidateId = checkbox.id;
+                            const candidateName = checkbox.getAttribute('data-name');
                             
                             if (isChecked) {
-                                selectedSenators.push({ id: senatorId, name: senatorName });
+                                selectedCandidates.push({ id: candidateId, name: candidateName });
                             } else {
-                                selectedSenators = selectedSenators.filter(senator => senator.id !== senatorId);
+                                selectedCandidates = selectedCandidates.filter(candidate => candidate.id !== candidateId);
                             }
                             
-                            updateSelectedSenatorsDisplay();
+                            updateSelectionDisplay();
                         }
                     });
                     
                     // Direct checkbox change
                     checkbox.addEventListener('change', function() {
-                        const senatorId = this.id;
-                        const senatorName = this.getAttribute('data-name');
+                        const candidateId = this.id;
+                        const candidateName = this.getAttribute('data-name');
+                        const positionName = this.getAttribute('data-position-name');
                         const isChecked = this.checked;
                         
                         if (isChecked) {
                             // Check if we're trying to add and already at max
-                            if (selectedSenators.length >= MAX_SENATORS) {
+                            if (selectedCandidates.length >= maxVotes) {
                                 this.checked = false;
-                                alert(`You can only select up to ${MAX_SENATORS} senators.`);
+                                alert(`You can only select up to ${maxVotes} candidates for ${positionName}.`);
                                 return;
                             }
                             
-                            selectedSenators.push({ id: senatorId, name: senatorName });
+                            selectedCandidates.push({ id: candidateId, name: candidateName });
                             this.closest('.candidate-card').classList.add('selected');
                         } else {
-                            selectedSenators = selectedSenators.filter(senator => senator.id !== senatorId);
+                            selectedCandidates = selectedCandidates.filter(candidate => candidate.id !== candidateId);
                             this.closest('.candidate-card').classList.remove('selected');
                         }
                         
-                        updateSelectedSenatorsDisplay();
+                        updateSelectionDisplay();
                     });
                     
                     // Check initial state
                     if (checkbox.checked) {
-                        const senatorId = checkbox.id;
-                        const senatorName = checkbox.getAttribute('data-name');
-                        selectedSenators.push({ id: senatorId, name: senatorName });
+                        const candidateId = checkbox.id;
+                        const candidateName = checkbox.getAttribute('data-name');
+                        selectedCandidates.push({ id: candidateId, name: candidateName });
                         checkbox.closest('.candidate-card').classList.add('selected');
                     }
                 });
                 
                 // Initialize the display
-                updateSelectedSenatorsDisplay();
-                
-                // Form submission validation
-                document.getElementById('votingForm').addEventListener('submit', function(e) {
-                    const senatorPosition = document.querySelector('.senator-candidates');
-                    if (senatorPosition) {
-                        if (selectedSenators.length === 0) {
-                            const confirmNoSenators = confirm("You haven't selected any senators. Are you sure you want to continue without voting for senators?");
-                            if (!confirmNoSenators) {
-                                e.preventDefault();
-                            }
-                        }
-                    }
-                });
-            }
+                updateSelectionDisplay();
+            });
+            
+            // Form submission validation
+            document.getElementById('votingForm').addEventListener('submit', function(e) {
+                // You can add additional validation here if needed
+                const confirmSubmit = confirm("Are you sure you want to submit your vote? This action cannot be undone.");
+                if (!confirmSubmit) {
+                    e.preventDefault();
+                }
+            });
         });
     </script>
 </body>
