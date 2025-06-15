@@ -26,7 +26,7 @@ A digital voting platform developed for Iloilo Science and Technology University
 
 ---
 
-### ✅ `LICENSE` (MIT License example with your name)
+### ✅ `LICENSE` (MIT License Larry Denver Biaco)
 ```text
 MIT License
 
