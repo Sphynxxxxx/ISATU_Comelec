@@ -7,21 +7,22 @@ require_once "../../backend/connections/config.php";
 // Get college parameter from URL
 $college_code = isset($_GET['college']) ? $_GET['college'] : '';
 
-// College validation
-$valid_colleges = ['sr', 'cas', 'cea', 'coe', 'cit'];
+// College validation - Updated to include CCI
+$valid_colleges = ['sr', 'cas', 'cea', 'coe', 'cit', 'cci'];
 if(!in_array($college_code, $valid_colleges)) {
     // Invalid college code, redirect to manage candidates
     header("Location: manage_candidates.php");
     exit();
 }
 
-// Define college names for display
+// Define college names for display - Updated to include CCI
 $college_names = [
     'sr' => 'Student Republic',
     'cas' => 'College of Arts and Sciences',
     'cea' => 'College of Engineering and Architecture',
     'coe' => 'College of Education',
-    'cit' => 'College of Industrial Technology'
+    'cit' => 'College of Industrial Technology',
+    'cci' => 'College of Computing and Informatics'
 ];
 
 // Define positions for each college with order number (lower number = higher rank)
@@ -99,7 +100,25 @@ $positions = [
         ['name' => 'Peace Courtesy Officer', 'order' => 9],
         ['name' => 'Public Information Officer', 'order' => 10],
         ['name' => 'Public Information Officer', 'order' => 11],
-    ]  
+    ],
+    'cci' => [
+        ['name' => 'Governor', 'order' => 1],
+        ['name' => 'Vice Governor', 'order' => 2],
+        ['name' => 'Secretary', 'order' => 3],
+        ['name' => 'Assistant Secretary', 'order' => 4],
+        ['name' => 'Treasurer', 'order' => 5],
+        ['name' => 'Assistant Treasurer', 'order' => 6],
+        ['name' => 'Bussiness Manager', 'order' => 7],
+        ['name' => 'Assistant Bussiness Manager', 'order' => 8],
+        ['name' => 'Auditor', 'order' => 9],
+        ['name' => 'Assistant Auditor', 'order' => 10],
+        ['name' => 'PRO 1', 'order' => 11],
+        ['name' => 'PRO 2', 'order' => 12],
+        ['name' => 'Social Media Manager', 'order' => 13],
+        ['name' => 'BSCS Representative', 'order' => 14],
+        ['name' => 'BSIT Representative', 'order' => 15],
+        ['name' => 'BSIS Representative', 'order' => 16],
+    ],
 ];
 
 // Extract position names for the dropdown
@@ -116,13 +135,14 @@ foreach ($positions as $college => $pos_list) {
     }
 }
 
-// Define parties for each college
+// Define parties for each college 
 $parties = [
     'sr' => ['TDA', 'IND', 'IROLES'],
     'cas' => ['TDA', 'IND', 'IROLES'],
     'cea' => ['TDA', 'IND', 'IROLES'],
     'coe' => ['TDA', 'IND', 'IROLES'],
-    'cit' => ['TDA', 'IND', 'IROLES']
+    'cit' => ['TDA', 'IND', 'IROLES'],
+    'cci' => ['TDA', 'IND', 'ASSEMBLE']
 ];
 
 // Process form submission
@@ -515,6 +535,11 @@ $current_datetime = date('F d, Y - h:i A');
         .cit-badge {
             background-color: rgba(13, 110, 253, 0.1);
             color: #0d6efd;
+        }
+        
+        .cci-badge {
+            background-color: rgba(40, 167, 69, 0.1);
+            color: #28a745;
         }
         
         .form-card {

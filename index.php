@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once "backend/connections/config.php"; // Make sure this path is correct
+require_once "backend/connections/config.php"; 
 
-// Set timezone to Philippines
+
 date_default_timezone_set('Asia/Manila');
 
 // Process form submission if any
@@ -587,6 +587,18 @@ if ($voting_schedule) {
                             </div>
                             <h5>College of Industrial Technology</h5>
                             <p class="text-muted mb-0 fs-6">OIT</p>
+                        </div>
+                    </div>
+
+                    <!-- College of Computing and Informatics -->
+                    <div class="col-md-6 col-lg-3">
+                        <div class="college-card border bg-white shadow-sm p-3 <?php echo (!$is_voting_active) ? 'college-card-disabled' : ''; ?>" 
+                            onclick="<?php echo ($is_voting_active) ? 'selectCollege(\'cci\')' : ''; ?>">
+                            <div class="college-logo-container college-img-container">
+                                <img src="assets/logo/CCI.png" alt="College of Computing and Informatics" class="img-logo">
+                            </div>
+                            <h5>College of Computing and Informatics</h5>
+                            <p class="text-muted mb-0 fs-6">CCISC</p>
                         </div>
                     </div>
                 </div>

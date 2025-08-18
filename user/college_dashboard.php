@@ -16,7 +16,8 @@ $college_names = [
     'cas' => 'College of Arts and Sciences',
     'cea' => 'College of Engineering and Architecture',
     'coe' => 'College of Education',
-    'cit' => 'College of Industrial Technology'
+    'cit' => 'College of Industrial Technology',
+    'cci' => 'College of Computing and Informatics'
 ];
 
 // Process student ID verification
@@ -301,7 +302,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['student_id'])) {
                         'cas' => '../assets/logo/CASSC.jpg',
                         'cea' => '../assets/logo/CEASC.jpg',
                         'coe' => '../assets/logo/COESC.jpg',
-                        'cit' => '../assets/logo/CITSC.png'
+                        'cit' => '../assets/logo/CITSC.png',
+                        'cci' => '../assets/logo/CCI.png'
                     ];
                     
                     // Default to ISATU logo if no specific college logo is found

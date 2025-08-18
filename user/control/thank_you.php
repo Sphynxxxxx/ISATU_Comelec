@@ -1,16 +1,13 @@
 <?php
 session_start();
 
-// Check if vote was successful
 if (!isset($_SESSION['vote_success']) || $_SESSION['vote_success'] !== true) {
     header("Location: ../../index.php");
     exit();
 }
 
-// Get college information
 $college_code = $_SESSION['selected_college'];
 
-// Get the timestamp of when the vote was actually cast
 $vote_timestamp = isset($_SESSION['vote_timestamp']) ? $_SESSION['vote_timestamp'] : time();
 
 // Set the timezone to Philippines (PHT)
@@ -22,12 +19,13 @@ $college_names = [
     'cas' => 'College of Arts and Sciences',
     'cea' => 'College of Engineering and Architecture',
     'coe' => 'College of Education',
-    'cit' => 'College of Industrial Technology'
+    'cit' => 'College of Industrial Technology',
+    'cci' => 'College of College of Computing and Informatics '
 ];
 
 // Clear session data except for necessary info
 $student_number = $_SESSION['student_number'];
-$vote_time = date('F j, Y, g:i a', $vote_timestamp); // Format the stored timestamp with PHT
+$vote_time = date('F j, Y, g:i a', $vote_timestamp); 
 session_unset();
 $_SESSION['voted'] = true;
 ?>
@@ -204,7 +202,7 @@ $_SESSION['voted'] = true;
             display: inline-block;
         }
         
-        /* Add a watermark style for the receipt */
+        /* watermark style for the receipt */
         .receipt-watermark {
             position: relative;
             overflow: hidden;
@@ -235,6 +233,11 @@ $_SESSION['voted'] = true;
             font-size: 0.8rem;
             color: #6c757d;
             margin-left: 5px;
+        }
+        .receipt-logo {
+            max-width: 80%;
+            height: auto;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -271,6 +274,10 @@ $_SESSION['voted'] = true;
                 </div>
                 <div>
                     <strong>Status:</strong> <span class="text-success">Vote Confirmed</span>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <img src="../../assets/logo/490998513_1696342900967498_7695203788743132170_n.jpg" alt="Rynie Boy" class="receipt-logo">
                 </div>
             </div>
             

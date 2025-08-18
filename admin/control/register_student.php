@@ -16,7 +16,8 @@ $college_names = [
     'cas' => 'College of Arts and Sciences',
     'cea' => 'College of Engineering and Architecture',
     'coe' => 'College of Education',
-    'cit' => 'College of Industrial Technology'
+    'cit' => 'College of Industrial Technology',
+    'cci' => 'College of Computing and Informatics'
 ];
 
 // Set default college from URL parameter, or default to 'sr'
@@ -610,6 +611,11 @@ if ($result->num_rows > 0) {
             color: #0d6efd;
         }
         
+        .cci {
+            background-color: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+        }
+        
         .timestamp {
             font-size: 0.9rem;
             color: #6c757d;
@@ -824,6 +830,8 @@ if ($result->num_rows > 0) {
                             <i class="bi bi-mortarboard-fill"></i>
                         <?php elseif ($selected_college == 'cit'): ?>
                             <i class="bi bi-gear-fill"></i>
+                        <?php elseif ($selected_college == 'cci'): ?>
+                            <i class="bi bi-laptop-fill"></i>
                         <?php endif; ?>
                     </div>
                     <div>
@@ -898,6 +906,21 @@ if ($result->num_rows > 0) {
                 <i class="bi bi-people-fill card-header-icon"></i>
             </div>
             
+            <!-- Search results message -->
+            <?php if (!empty($search_term)): ?>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <?php 
+                $result_count = count($registered_students);
+                if ($result_count > 0): 
+                ?>
+                    Found <?php echo $result_count; ?> student<?php echo $result_count != 1 ? 's' : ''; ?> matching "<?php echo htmlspecialchars($search_term); ?>"
+                <?php else: ?>
+                    No students found matching "<?php echo htmlspecialchars($search_term); ?>"
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+            
             <?php if (count($registered_students) > 0): ?>
                 <div class="table-responsive">
                     <table class="students-table">
@@ -941,22 +964,6 @@ if ($result->num_rows > 0) {
                 </div>
             <?php endif; ?>
         </div>
-
-        <!-- Search results message - add this right after the card-header-action div in the Registered Students section -->
-        <?php if (!empty($search_term)): ?>
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle-fill me-2"></i>
-            <?php 
-            $result_count = count($registered_students);
-            if ($result_count > 0): 
-            ?>
-                Found <?php echo $result_count; ?> student<?php echo $result_count != 1 ? 's' : ''; ?> matching "<?php echo htmlspecialchars($search_term); ?>"
-            <?php else: ?>
-                No students found matching "<?php echo htmlspecialchars($search_term); ?>"
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
-
         
         <div class="timestamp">
             <i class="bi bi-clock"></i> Last updated: <?php echo $current_datetime; ?>
@@ -967,23 +974,26 @@ if ($result->num_rows > 0) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // Toggle sidebar functionality
-        document.getElementById('toggleBtn').addEventListener('click', function() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            const toggleIcon = document.getElementById('toggleIcon');
-            
-            sidebar.classList.toggle('sidebar-collapsed');
-            mainContent.classList.toggle('main-content-expanded');
-            
-            if (sidebar.classList.contains('sidebar-collapsed')) {
-                toggleIcon.classList.remove('bi-chevron-left');
-                toggleIcon.classList.add('bi-chevron-right');
-            } else {
-                toggleIcon.classList.remove('bi-chevron-right');
-                toggleIcon.classList.add('bi-chevron-left');
-            }
-        });
+        // Toggle sidebar functionality (if toggle button exists)
+        const toggleBtn = document.getElementById('toggleBtn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                const toggleIcon = document.getElementById('toggleIcon');
+                
+                sidebar.classList.toggle('sidebar-collapsed');
+                mainContent.classList.toggle('main-content-expanded');
+                
+                if (sidebar.classList.contains('sidebar-collapsed')) {
+                    toggleIcon.classList.remove('bi-chevron-left');
+                    toggleIcon.classList.add('bi-chevron-right');
+                } else {
+                    toggleIcon.classList.remove('bi-chevron-right');
+                    toggleIcon.classList.add('bi-chevron-left');
+                }
+            });
+        }
 
         // Confirm delete action
         document.querySelectorAll('.btn-delete').forEach(btn => {

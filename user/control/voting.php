@@ -18,10 +18,10 @@ $college_names = [
     'cas' => 'College of Arts and Sciences',
     'cea' => 'College of Engineering and Architecture',
     'coe' => 'College of Education',
-    'cit' => 'College of Industrial Technology'
+    'cit' => 'College of Industrial Technology',
+    'cci' => 'College of Computing and Informatics'
 ];
 
-// Position hierarchy mapping (lower number = higher position)
 $position_hierarchy = [
     'governor' => 1,
     'vice governor' => 2,
@@ -58,7 +58,6 @@ $positions = [];
 $candidates = [];
 
 // Query to get positions that have candidates for this college
-// Modified to ensure correct hierarchical order - using ASC for display_order where lower numbers = higher rank
 $position_query = "SELECT DISTINCT p.* 
                   FROM positions p 
                   JOIN candidates c ON p.id = c.position_id 
@@ -83,20 +82,19 @@ while ($position = $position_result->fetch_assoc()) {
         'sentinel', 
         'peace courtesy officer'
     ])) {
-        // Set appropriate max votes for each position (you can adjust these numbers)
         switch ($position_name_lower) {
             case 'board of director':
             case 'board of directors':
-                $position['max_votes'] = 7; // Adjust as needed
+                $position['max_votes'] = 7; 
                 break;
             case 'public information officer':
-                $position['max_votes'] = 3; // Adjust as needed
+                $position['max_votes'] = 3; 
                 break;
             case 'sentinel':
-                $position['max_votes'] = 5; // Adjust as needed
+                $position['max_votes'] = 5; 
                 break;
             case 'peace courtesy officer':
-                $position['max_votes'] = 4; // Adjust as needed
+                $position['max_votes'] = 4; 
                 break;
         }
     }
@@ -106,7 +104,7 @@ while ($position = $position_result->fetch_assoc()) {
     // Add hierarchical value for custom sorting
     $positions[$position['id']]['hierarchy_value'] = isset($position_hierarchy[$position_name_lower]) 
         ? $position_hierarchy[$position_name_lower] 
-        : 999; // Default to a high number for unknown positions
+        : 999; 
 }
 $stmt->close();
 
@@ -130,7 +128,7 @@ while ($candidate = $candidate_result->fetch_assoc()) {
 }
 $stmt->close();
 
-// Custom sorting of positions by hierarchy (lower number = higher position)
+// Custom sorting of positions by hierarchy 
 uasort($positions, function($a, $b) {
     return $a['hierarchy_value'] - $b['hierarchy_value'];
 });
@@ -141,7 +139,7 @@ $success_message = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_vote'])) {
     // Get active election ID
-    $election_id = 1; // Default to 1 if no active election setting is found
+    $election_id = 1; 
     $election_query = "SELECT id FROM election_settings WHERE is_active = 1 LIMIT 1";
     $election_result = $conn->query($election_query);
     if ($election_result && $election_result->num_rows > 0) {
@@ -231,294 +229,9 @@ function isSenatorsPosition($position) {
     <title>Vote - <?php echo $college_names[$college_code]; ?> - ISATU Voting System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../assets/css/style.css">
     <style>
-        :root {
-            --isatu-primary: #0c3b5d;    /* ISATU navy blue */
-            --isatu-secondary: #f2c01d;  /* ISATU gold/yellow */
-            --isatu-accent: #1a64a0;     /* ISATU lighter blue */
-            --isatu-light: #e8f1f8;      /* Light blue background */
-            --isatu-dark: #092c48;       /* Darker blue */
-        }
         
-        body {
-            background-color: #f8f9fa;
-            background-image: linear-gradient(120deg, #f8f9fa 0%, var(--isatu-light) 100%);
-            padding-top: 40px; 
-            padding-bottom: 40px; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh; 
-        }
-        
-        .container {
-            max-width: 1200px;
-        }
-        
-        h1, h2, h3, h4, h5 {
-            color: var(--isatu-primary);
-        }
-        
-        .isatu-header {
-            background-color: #fff;
-            padding: 30px; 
-            border-radius: 16px; 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.15); 
-            margin-bottom: 40px; 
-            position: relative;
-            overflow: hidden;
-            border-top: 7px solid var(--isatu-primary); 
-            border-bottom: 7px solid var(--isatu-secondary);
-        }
-        
-        .voting-card {
-            background-color: white;
-            border-radius: 16px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-            padding: 35px;
-            margin-bottom: 30px;
-            border-left: 6px solid var(--isatu-primary);
-        }
-        
-        .position-section {
-            background-color: rgba(12, 59, 93, 0.05);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 30px;
-            border-left: 4px solid var(--isatu-accent);
-        }
-        
-        .position-title {
-            color: var(--isatu-primary);
-            font-weight: 600;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--isatu-secondary);
-            margin-bottom: 20px;
-        }
-        
-        .candidate-card {
-            background-color: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 10px;
-            transition: transform 0.2s, box-shadow 0.2s;
-            border: 1px solid #eaeaea;
-            position: relative;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-        
-        .candidate-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        }
-        
-        .candidate-card.selected {
-            border: 2px solid var(--isatu-secondary);
-            background-color: rgba(242, 192, 29, 0.05);
-        }
-        
-        .candidate-card.selected::after {
-            content: "✓";
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: var(--isatu-secondary);
-            color: var(--isatu-primary);
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-        
-        .candidate-image {
-            width: 150px;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 3px solid var(--isatu-primary);
-            margin: 0 auto;
-        }
-        
-        .candidate-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-        }
-        
-        .candidate-name {
-            font-weight: 600;
-            color: var(--isatu-primary);
-            font-size: 1.3rem;
-            margin-bottom: 5px;
-        }
-        
-        .candidate-party {
-            display: inline-block;
-            background-color: var(--isatu-accent);
-            color: white;
-            padding: 3px 10px;
-            border-radius: 15px;
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-        }
-        
-        .candidate-platform {
-            color: #666;
-            font-size: 0.95rem;
-        }
-        
-        .college-badge {
-            color: var(--isatu-primary);
-            font-size: 3rem;
-            border-radius: 15px;
-            font-weight: 600;
-            display: inline-block;
-            text-align: center;
-        }
-        
-        .college-logo {
-            height: 150px;
-            width: auto;
-            max-width: 100%;
-            display: block;
-            margin: 0 auto 10px;
-        }
-        
-        .student-info {
-            background-color: rgba(242, 192, 29, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border: 1px solid var(--isatu-secondary);
-        }
-        
-        .btn-submit-vote {
-            background-color: var(--isatu-primary);
-            border-color: var(--isatu-primary);
-            color: white;
-            padding: 15px 40px;
-            font-weight: 600;
-            border-radius: 40px;
-            letter-spacing: 0.5px;
-            transition: all 0.3s;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-        }
-        
-        .btn-submit-vote:hover, .btn-submit-vote:focus {
-            background-color: var(--isatu-dark);
-            border-color: var(--isatu-dark);
-            transform: scale(1.05);
-            box-shadow: 0 8px 25px rgba(12, 59, 93, 0.35);
-        }
-        
-        .alert-voting-info {
-            background-color: rgba(12, 59, 93, 0.1);
-            border-color: var(--isatu-primary);
-            color: var(--isatu-primary);
-            border-radius: 10px;
-            margin-bottom: 25px;
-        }
-        
-        .isatu-logo {
-            max-width: 120px;
-            margin-right: 25px;
-        }
-        
-        .no-candidates {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            color: #6c757d;
-        }
-        
-        .form-check-input:checked {
-            background-color: var(--isatu-primary);
-            border-color: var(--isatu-primary);
-        }
-        
-        /* Multi-vote selection summary styles */
-        .multi-vote-selection-summary {
-            background-color: rgba(242, 192, 29, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            border: 1px solid var(--isatu-secondary);
-        }
-        
-        .selection-chip {
-            display: inline-block;
-            background-color: var(--isatu-primary);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            margin: 2px;
-            font-size: 0.9rem;
-        }
-        
-        .selection-chip .remove-selection {
-            cursor: pointer;
-            margin-left: 8px;
-            font-weight: bold;
-        }
-        
-        .selection-count {
-            font-weight: bold;
-            color: var(--isatu-primary);
-        }
-        
-        @media (max-width: 767px) {
-            .isatu-header {
-                padding: 20px;
-                text-align: center;
-            }
-            
-            .isatu-header div {
-                margin-top: 10px;
-            }
-            
-            .voting-card {
-                padding: 25px;
-            }
-            
-            .isatu-header .d-flex.align-items-center {
-                flex-direction: column;
-            }
-            
-            .isatu-logo {
-                margin: 0 auto 15px auto;
-            }
-            
-            .candidate-card {
-                padding: 15px;
-            }
-        }
-        
-        /* Footer styles */
-        .footer-text {
-            color: var(--isatu-primary);
-            font-size: 1rem;
-            padding: 15px;
-            background-color: rgba(255, 255, 255, 0.7);
-            border-radius: 30px;
-            display: inline-block;
-            margin-top: 30px;
-        }
-        
-        .no-positions {
-            text-align: center;
-            padding: 50px 20px;
-            background-color: rgba(12, 59, 93, 0.05);
-            border-radius: 15px;
-            margin-bottom: 30px;
-        }
     </style>
 </head>
 <body>
@@ -543,7 +256,8 @@ function isSenatorsPosition($position) {
                         'cas' => '../../assets/logo/CASSC.jpg',
                         'cea' => '../../assets/logo/CEASC.jpg',
                         'coe' => '../../assets/logo/COESC.jpg',
-                        'cit' => '../../assets/logo/CITSC.png'
+                        'cit' => '../../assets/logo/CITSC.png',
+                        'cci' => '../../assets/logo/CCI.png'
                     ];
                     
                     // Default to ISATU logo if no specific college logo is found

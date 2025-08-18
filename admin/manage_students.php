@@ -36,7 +36,8 @@ $college_names = [
     'cas' => 'College of Arts and Sciences',
     'cea' => 'College of Engineering and Architecture',
     'coe' => 'College of Education',
-    'cit' => 'College of Industrial Technology'
+    'cit' => 'College of Industrial Technology',
+    'cci' => 'College of Computing and Informatics'
 ];
 
 // Initialize all colleges with zero count
@@ -432,6 +433,11 @@ $current_datetime = date('F d, Y - h:i A');
             color: #0d6efd;
         }
         
+        .cci {
+            background-color: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+        }
+        
         .quick-actions {
             display: flex;
             gap: 15px;
@@ -616,6 +622,8 @@ $current_datetime = date('F d, Y - h:i A');
                                     <i class="bi bi-mortarboard-fill"></i>
                                 <?php elseif ($code == 'cit'): ?>
                                     <i class="bi bi-gear-fill"></i>
+                                <?php elseif ($code == 'cci'): ?>
+                                    <i class="bi bi-laptop-fill"></i>
                                 <?php endif; ?>
                             </div>
                             <div class="college-info">

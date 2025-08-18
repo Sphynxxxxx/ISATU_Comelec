@@ -26,7 +26,8 @@ $college_names = [
     'cas' => 'College of Arts and Sciences',
     'cea' => 'College of Engineering and Architecture',
     'coe' => 'College of Education',
-    'cit' => 'College of Industrial Technology'
+    'cit' => 'College of Industrial Technology',
+    'cci' => 'College of Computing and Informatics'
 ];
 
 
@@ -653,6 +654,8 @@ $current_datetime = date('F d, Y - h:i A');
                                 <img src="../assets/logo/COESC.jpg" alt="COE Image">
                             <?php elseif ($code == 'cit'): ?>
                                 <img src="../assets/logo/CITSC.png" alt="CIT Image">
+                            <?php elseif ($code == 'cci'): ?>
+                                <img src="../assets/logo/CCI.png" alt="CCI Image">
                             <?php endif; ?>
                         </div>
 

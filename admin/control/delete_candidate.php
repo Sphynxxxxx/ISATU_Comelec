@@ -14,7 +14,7 @@ $candidate_id = (int)$_GET['id'];
 $college_code = $_GET['college'];
 
 // Validate college code
-$valid_colleges = ['sr', 'cas', 'cea', 'coe', 'cit'];
+$valid_colleges = ['sr', 'cas', 'cea', 'coe', 'cit', 'cci'];
 if (!in_array($college_code, $valid_colleges)) {
     $_SESSION['error'] = "Invalid college code.";
     header("Location: ../manage_candidates.php");
