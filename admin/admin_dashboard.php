@@ -39,7 +39,8 @@ $college_votes = [
     'cas' => 0, 
     'cea' => 0, 
     'coe' => 0, 
-    'cit' => 0
+    'cit' => 0,
+    'cci' => 0
 ];
 
 // Fill in actual votes from database
@@ -771,7 +772,8 @@ if ($voting_schedule) {
                             'cas' => 'College of Arts and Sciences',
                             'cea' => 'College of Engineering and Architecture',
                             'coe' => 'College of Education',
-                            'cit' => 'College of Industrial Technology'
+                            'cit' => 'College of Industrial Technology',
+                            'cci' => 'College of Computing and Informatics'
                         ];
                         
                         // Display progress bars for each college

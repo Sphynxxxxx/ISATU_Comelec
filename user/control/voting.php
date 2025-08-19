@@ -445,7 +445,8 @@ function isSenatorsPosition($position) {
                 card.addEventListener('click', function() {
                     const input = this.querySelector('input[type="radio"]');
                     if (input) {
-                        input.checked = true;
+                        // For radio buttons, we need to check if it's already selected
+                        const wasSelected = this.classList.contains('selected');
                         
                         // Remove selected class from other cards in the same position
                         const positionClass = input.className.split(' ')
@@ -453,11 +454,16 @@ function isSenatorsPosition($position) {
                         if (positionClass) {
                             document.querySelectorAll(`.${positionClass}`).forEach(otherInput => {
                                 otherInput.closest('.candidate-card').classList.remove('selected');
+                                otherInput.checked = false;
                             });
                         }
                         
-                        // Add selected class to this card
-                        this.classList.add('selected');
+                        // If it wasn't selected before, select it now
+                        // If it was selected, leave it unselected (allowing unselect)
+                        if (!wasSelected) {
+                            input.checked = true;
+                            this.classList.add('selected');
+                        }
                     }
                 });
             });
@@ -530,34 +536,41 @@ function isSenatorsPosition($position) {
                     
                     // Click on candidate card should toggle checkbox
                     candidateCard.addEventListener('click', function(e) {
-                        // Skip if the click is on the checkbox itself
-                        if (e.target !== checkbox && e.target.tagName !== 'LABEL') {
-                            const isChecked = !checkbox.checked;
-                            
-                            // Check if we're trying to add and already at max
-                            if (isChecked && selectedCandidates.length >= maxVotes) {
-                                const positionName = checkbox.getAttribute('data-position-name');
-                                alert(`You can only select up to ${maxVotes} candidates for ${positionName}.`);
-                                return;
-                            }
-                            
-                            checkbox.checked = isChecked;
-                            this.classList.toggle('selected', isChecked);
-                            
-                            const candidateId = checkbox.id;
-                            const candidateName = checkbox.getAttribute('data-name');
-                            
-                            if (isChecked) {
-                                selectedCandidates.push({ id: candidateId, name: candidateName });
-                            } else {
-                                selectedCandidates = selectedCandidates.filter(candidate => candidate.id !== candidateId);
-                            }
-                            
-                            updateSelectionDisplay();
+                        // Skip if the click is on the checkbox itself or its label
+                        if (e.target === checkbox || e.target.tagName === 'LABEL') {
+                            return;
                         }
+                        
+                        // Toggle the checkbox state
+                        const currentState = checkbox.checked;
+                        const newState = !currentState;
+                        
+                        // Check if we're trying to add and already at max
+                        if (newState && selectedCandidates.length >= maxVotes) {
+                            const positionName = checkbox.getAttribute('data-position-name');
+                            alert(`You can only select up to ${maxVotes} candidates for ${positionName}.`);
+                            return;
+                        }
+                        
+                        // Update checkbox and card state
+                        checkbox.checked = newState;
+                        this.classList.toggle('selected', newState);
+                        
+                        const candidateId = checkbox.id;
+                        const candidateName = checkbox.getAttribute('data-name');
+                        
+                        if (newState) {
+                            // Add to selected candidates
+                            selectedCandidates.push({ id: candidateId, name: candidateName });
+                        } else {
+                            // Remove from selected candidates
+                            selectedCandidates = selectedCandidates.filter(candidate => candidate.id !== candidateId);
+                        }
+                        
+                        updateSelectionDisplay();
                     });
                     
-                    // Direct checkbox change
+                    // Direct checkbox change (when clicked directly)
                     checkbox.addEventListener('change', function() {
                         const candidateId = this.id;
                         const candidateName = this.getAttribute('data-name');
@@ -597,7 +610,6 @@ function isSenatorsPosition($position) {
             
             // Form submission validation
             document.getElementById('votingForm').addEventListener('submit', function(e) {
-                // You can add additional validation here if needed
                 const confirmSubmit = confirm("Are you sure you want to submit your vote? This action cannot be undone.");
                 if (!confirmSubmit) {
                     e.preventDefault();

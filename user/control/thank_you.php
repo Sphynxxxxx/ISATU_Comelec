@@ -20,7 +20,7 @@ $college_names = [
     'cea' => 'College of Engineering and Architecture',
     'coe' => 'College of Education',
     'cit' => 'College of Industrial Technology',
-    'cci' => 'College of College of Computing and Informatics '
+    'cci' => 'College of Computing and Informatics '
 ];
 
 // Clear session data except for necessary info
@@ -256,7 +256,7 @@ $_SESSION['voted'] = true;
     
     <div class="container">
         <div class="thank-you-card">
-            <img src="../../assets/logo/ISAT-U-logo-2.png" alt="ISATU Logo" class="isatu-logo">
+            <img src="../../assets/logo/isatu_comelec.png" alt="ISATU Logo" class="isatu-logo">
             <i class="bi bi-check-circle-fill success-icon"></i>
             <h1>Thank You for Voting!</h1>
             <p class="fs-5 text-muted">Your vote has been successfully recorded.</p>
